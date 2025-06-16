@@ -1,0 +1,807 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+// ===== USER MANAGEMENT =====
+model User {
+    id        String   @id @default(cuid())
+    clerkId   String   @unique
+    email     String   @unique
+    firstName String?
+    lastName  String?
+    imageUrl  String?
+    role      UserRole @default(STUDENT)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // Relations
+    studentProfile    StudentProfile?
+    advisorProfile    AdvisorProfile?
+    adminProfile      AdminProfile?
+    notifications     Notification[]
+    testResults       TestResult[]
+    recommendations   Recommendation[]
+    favoritePrograms  FavoriteProgram[]
+    appointments      Appointment[]
+    internshipMatches InternshipMatch[]
+    jobMatches        JobMatch[]
+
+    @@map("users")
+}
+
+enum UserRole {
+    STUDENT
+    ADVISOR
+    ADMIN
+}
+
+// ===== STUDENT PROFILES =====
+model StudentProfile {
+    id     String @id @default(cuid())
+    userId String @unique
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    // Personal Information
+    studentId   String?   @unique
+    phoneNumber String?
+    dateOfBirth DateTime?
+    gender      Gender?
+    nationality String?
+    address     String?
+
+    // Academic Information
+    currentLevel          AcademicLevel?
+    currentProgram        String?
+    currentSpecialization String?
+    enrollmentYear        Int?
+    gpa                   Float?
+
+    // Academic Background
+    previousEducation  String?
+    baccalaureateType  String?
+    baccalaureateGrade String?
+    mathsGrade         Float?
+    physicsGrade       Float?
+    chemistryGrade     Float?
+    frenchGrade        Float?
+    englishGrade       Float?
+
+    // Professional Aspirations
+    careerGoals           String?
+    preferredSectors      String[] // JSON array of sectors
+    workEnvironmentPref   WorkEnvironment?
+    geographicConstraints String?
+    familyConstraints     String?
+    personalValues        String[] // JSON array of values
+
+    // Profile Status
+    profileCompleted  Boolean  @default(false)
+    lastProfileUpdate DateTime @default(now())
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // Relations
+    academicForms   AcademicForm[]
+    aspirationForms AspirationForm[]
+
+    @@map("student_profiles")
+}
+
+enum Gender {
+    MALE
+    FEMALE
+}
+
+enum AcademicLevel {
+    BTS1
+    BTS2
+    LICENSE1
+    LICENSE2
+    LICENSE3
+    MASTER1
+    MASTER2
+    PHD
+}
+
+enum WorkEnvironment {
+    OFFICE
+    FIELD
+    REMOTE
+    MIXED
+    LABORATORY
+    FACTORY
+    STARTUP
+    LARGE_COMPANY
+    HOSPITAL
+    SCHOOL
+}
+
+// ===== OTHER PROFILES =====
+model AdvisorProfile {
+    id     String @id @default(cuid())
+    userId String @unique
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    department  String?
+    specialties String[] // JSON array
+    yearsExp    Int?
+    bio         String?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // Relations
+    appointments Appointment[]
+
+    @@map("advisor_profiles")
+}
+
+model AdminProfile {
+    id     String @id @default(cuid())
+    userId String @unique
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    permissions String[] // JSON array of admin permissions
+    department  String?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("admin_profiles")
+}
+
+// ===== ACADEMIC PROGRAMS =====
+model Program {
+    id          String        @id @default(cuid())
+    code        String        @unique
+    name        String
+    shortName   String?
+    description String?
+    department  String
+    level       AcademicLevel
+    duration    Int // in semesters
+
+    // Requirements
+    prerequisites  String[] // JSON array
+    minGpaRequired Float?
+    maxCapacity    Int?
+
+    // Program Details
+    objectives      String?
+    skillsDeveloped String[] // JSON array
+    coursework      String?
+
+    // Career Information
+    careerProspects String[] // JSON array
+    averageSalary   Float?
+    employmentRate  Float?
+
+    // Status
+    isActive        Boolean @default(true)
+    applicationOpen Boolean @default(true)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // Relations
+    specializations    Specialization[]
+    recommendations    Recommendation[]
+    favoritePrograms   FavoriteProgram[]
+    internships        Internship[]
+    jobs               Job[]
+    alumniTestimonials AlumniTestimonial[]
+
+    @@map("programs")
+}
+
+model Specialization {
+    id        String  @id @default(cuid())
+    programId String
+    program   Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+    name         String
+    description  String?
+    requirements String[] // JSON array
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("specializations")
+}
+
+// ===== ASSESSMENT FORMS =====
+model AcademicForm {
+    id        String         @id @default(cuid())
+    studentId String
+    student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+    // Academic History
+    currentLevel          AcademicLevel
+    previousGrades        Json // Detailed grades by subject
+    academicStrengths     String[] // JSON array
+    academicWeaknesses    String[] // JSON array
+    favoriteSubjects      String[] // JSON array
+    leastFavoriteSubjects String[] // JSON array
+
+    // Learning Preferences
+    learningStyle         LearningStyle?
+    preferredTeachingMode TeachingMode?
+    studyHabits           String?
+
+    // Academic Goals
+    shortTermGoals String?
+    longTermGoals  String?
+
+    // Completion Status
+    isCompleted Boolean   @default(false)
+    completedAt DateTime?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("academic_forms")
+}
+
+enum LearningStyle {
+    VISUAL
+    AUDITORY
+    KINESTHETIC
+    READING_WRITING
+    MIXED
+}
+
+enum TeachingMode {
+    TRADITIONAL_CLASSROOM
+    ONLINE_LEARNING
+    HYBRID
+    PRACTICAL_WORKSHOPS
+    PROJECT_BASED
+}
+
+model AspirationForm {
+    id        String         @id @default(cuid())
+    studentId String
+    student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+    // Career Aspirations
+    dreamJob            String?
+    preferredIndustries String[] // JSON array
+    workEnvironmentPref WorkEnvironment?
+    salaryExpectations  SalaryRange?
+    workLifeBalance     Int? // Scale 1-10
+
+    // Professional Values
+    importantValues      String[] // JSON array
+    leadershipInterest   Boolean  @default(false)
+    entrepreneurialGoals Boolean  @default(false)
+    internationalCareer  Boolean  @default(false)
+
+    // Constraints and Preferences
+    geographicFlexibility Boolean @default(true)
+    familyConstraints     String?
+    physicalLimitations   String?
+
+    // Motivations
+    primaryMotivations String[] // JSON array
+    roleModels         String?
+    inspirationalStory String?
+
+    // Completion Status
+    isCompleted Boolean   @default(false)
+    completedAt DateTime?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("aspiration_forms")
+}
+
+enum SalaryRange {
+    BELOW_500K
+    RANGE_500K_1M
+    RANGE_1M_2M
+    RANGE_2M_5M
+    ABOVE_5M
+    NOT_IMPORTANT
+}
+
+// ===== ASSESSMENT TESTS =====
+model Test {
+    id          String       @id @default(cuid())
+    name        String
+    description String?
+    type        TestType
+    category    TestCategory
+
+    // Test Configuration
+    questions    Json // Array of questions with options
+    timeLimit    Int? // in minutes
+    passingScore Float?
+    maxAttempts  Int    @default(3)
+
+    // Status
+    isActive   Boolean    @default(true)
+    difficulty Difficulty @default(MEDIUM)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // Relations
+    testResults TestResult[]
+
+    @@map("tests")
+}
+
+enum TestType {
+    PERSONALITY
+    APTITUDE
+    LOGICAL_REASONING
+    CREATIVE_THINKING
+    TECHNICAL_SKILLS
+    LANGUAGE_PROFICIENCY
+    CAREER_INTEREST
+    PSYCHOLOGICAL
+}
+
+enum TestCategory {
+    CORE_ASSESSMENT
+    SUPPLEMENTARY
+    DIAGNOSTIC
+    VALIDATION
+}
+
+enum Difficulty {
+    EASY
+    MEDIUM
+    HARD
+    EXPERT
+}
+
+model TestResult {
+    id     String @id @default(cuid())
+    userId String
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+    testId String
+    test   Test   @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+    // Results
+    score      Float
+    maxScore   Float
+    percentage Float
+    responses  Json // User's answers
+    analysis   Json // Detailed analysis of results
+
+    // Timing
+    timeSpent   Int // in seconds
+    startedAt   DateTime
+    completedAt DateTime?
+
+    // Status
+    isCompleted   Boolean @default(false)
+    attemptNumber Int     @default(1)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@unique([userId, testId, attemptNumber])
+    @@map("test_results")
+}
+
+// ===== RECOMMENDATION SYSTEM =====
+model Recommendation {
+    id        String  @id @default(cuid())
+    userId    String
+    user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+    programId String
+    program   Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+    // Recommendation Details
+    score           Float // Compatibility score (0-100)
+    confidence      Float // Algorithm confidence (0-1)
+    reasoning       String[] // JSON array of reasons
+    strengths       String[] // Why this program fits
+    challenges      String[] // Potential challenges
+    recommendations String[] // Additional advice
+
+    // Algorithm Information
+    algorithmVersion String @default("1.0")
+    criteriaWeights  Json // Weights used in calculation
+
+    // User Interaction
+    userFeedback RecommendationFeedback?
+    isBookmarked Boolean                 @default(false)
+    viewedAt     DateTime?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@unique([userId, programId]) // Prevent duplicate recommendations
+    @@map("recommendations")
+}
+
+enum RecommendationFeedback {
+    VERY_HELPFUL
+    HELPFUL
+    NEUTRAL
+    NOT_HELPFUL
+    MISLEADING
+}
+
+// ===== FAVORITES AND BOOKMARKS =====
+model FavoriteProgram {
+    id        String  @id @default(cuid())
+    userId    String
+    user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+    programId String
+    program   Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+    notes    String?
+    priority Int     @default(0) // Higher number = higher priority
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@unique([userId, programId])
+    @@map("favorite_programs")
+}
+
+// ===== INTERNSHIPS AND CAREER OPPORTUNITIES =====
+model Internship {
+    id        String   @id @default(cuid())
+    programId String?
+    program   Program? @relation(fields: [programId], references: [id], onDelete: SetNull)
+
+    // Company Information
+    companyName    String
+    companyLogo    String?
+    companyWebsite String?
+    companySize    CompanySize?
+    industry       String
+
+    // Position Details
+    title            String
+    description      String
+    requirements     String[] // JSON array
+    responsibilities String[] // JSON array
+    skills           String[] // JSON array
+
+    // Practical Information
+    location            String
+    duration            Int // in months
+    stipend             Float?
+    isRemote            Boolean   @default(false)
+    startDate           DateTime?
+    applicationDeadline DateTime?
+
+    // Contact Information
+    contactEmail  String?
+    contactPhone  String?
+    contactPerson String?
+
+    // Status
+    isActive       Boolean @default(true)
+    spotsAvailable Int?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // Relations
+    internshipMatches InternshipMatch[]
+
+    @@map("internships")
+}
+
+enum CompanySize {
+    STARTUP // 1-10 employees
+    SMALL // 11-50 employees
+    MEDIUM // 51-200 employees
+    LARGE // 201-1000 employees
+    ENTERPRISE // 1000+ employees
+}
+
+model InternshipMatch {
+    id           String     @id @default(cuid())
+    userId       String
+    user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+    internshipId String
+    internship   Internship @relation(fields: [internshipId], references: [id], onDelete: Cascade)
+
+    // Match Information
+    matchScore Float // 0-100
+    status     ApplicationStatus @default(INTERESTED)
+    appliedAt  DateTime?
+
+    // User Notes
+    notes String?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@unique([userId, internshipId])
+    @@map("internship_matches")
+}
+
+model Job {
+    id        String   @id @default(cuid())
+    programId String?
+    program   Program? @relation(fields: [programId], references: [id], onDelete: SetNull)
+
+    // Company Information
+    companyName    String
+    companyLogo    String?
+    companyWebsite String?
+    companySize    CompanySize?
+    industry       String
+
+    // Position Details
+    title            String
+    description      String
+    requirements     String[] // JSON array
+    responsibilities String[] // JSON array
+    skills           String[] // JSON array
+
+    // Practical Information
+    location            String
+    employmentType      EmploymentType @default(FULL_TIME)
+    salary              Float?
+    salaryRange         SalaryRange?
+    isRemote            Boolean        @default(false)
+    startDate           DateTime?
+    applicationDeadline DateTime?
+
+    // Contact Information
+    contactEmail  String?
+    contactPhone  String?
+    contactPerson String?
+
+    // Status
+    isActive       Boolean @default(true)
+    spotsAvailable Int?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // Relations
+    jobMatches JobMatch[]
+
+    @@map("jobs")
+}
+
+enum EmploymentType {
+    FULL_TIME
+    PART_TIME
+    CONTRACT
+    TEMPORARY
+    INTERNSHIP
+    FREELANCE
+}
+
+model JobMatch {
+    id     String @id @default(cuid())
+    userId String
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+    jobId  String
+    job    Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+    // Match Information
+    matchScore Float // 0-100
+    status     ApplicationStatus @default(INTERESTED)
+    appliedAt  DateTime?
+
+    // User Notes
+    notes String?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@unique([userId, jobId])
+    @@map("job_matches")
+}
+
+enum ApplicationStatus {
+    INTERESTED
+    APPLIED
+    INTERVIEW_SCHEDULED
+    UNDER_REVIEW
+    ACCEPTED
+    REJECTED
+    WITHDRAWN
+    OFFER_PENDING
+}
+
+// ===== APPOINTMENTS AND COUNSELING =====
+model Appointment {
+    id        String          @id @default(cuid())
+    studentId String
+    student   User            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+    advisorId String?
+    advisor   AdvisorProfile? @relation(fields: [advisorId], references: [id], onDelete: SetNull)
+
+    // Appointment Details
+    title       String
+    description String?
+    type        AppointmentType
+    mode        MeetingMode     @default(IN_PERSON)
+
+    // Scheduling
+    scheduledAt DateTime
+    duration    Int      @default(60) // in minutes
+    location    String?
+    meetingLink String?
+
+    // Status
+    status          AppointmentStatus @default(SCHEDULED)
+    cancelReason    String?
+    rescheduleCount Int               @default(0)
+
+    // Notes
+    advisorNotes  String?
+    studentNotes  String?
+    followUpItems String[] // JSON array
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("appointments")
+}
+
+enum AppointmentType {
+    ACADEMIC_GUIDANCE
+    CAREER_COUNSELING
+    PROGRAM_SELECTION
+    INTERNSHIP_GUIDANCE
+    PERSONAL_DEVELOPMENT
+    FOLLOW_UP
+    MENTAL_HEALTH
+}
+
+enum MeetingMode {
+    IN_PERSON
+    VIDEO_CALL
+    PHONE_CALL
+    CHAT
+}
+
+enum AppointmentStatus {
+    SCHEDULED
+    CONFIRMED
+    IN_PROGRESS
+    COMPLETED
+    CANCELLED
+    NO_SHOW
+    RESCHEDULED
+}
+
+// ===== NOTIFICATIONS =====
+model Notification {
+    id     String @id @default(cuid())
+    userId String
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    // Notification Content
+    title    String
+    message  String
+    type     NotificationType
+    priority NotificationPriority @default(MEDIUM)
+
+    // Notification Data
+    data      Json? // Additional data for the notification
+    actionUrl String? // URL to navigate when clicked
+
+    // Status
+    isRead Boolean   @default(false)
+    readAt DateTime?
+
+    // Delivery
+    deliveredAt DateTime?
+    expiresAt   DateTime?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@index([userId, isRead]) // For efficient querying of unread notifications
+    @@map("notifications")
+}
+
+enum NotificationType {
+    RECOMMENDATION_READY
+    APPOINTMENT_REMINDER
+    APPLICATION_DEADLINE
+    PROGRAM_UPDATE
+    TEST_AVAILABLE
+    INTERNSHIP_MATCH
+    JOB_MATCH
+    SYSTEM_ANNOUNCEMENT
+    PROFILE_INCOMPLETE
+    WELCOME
+}
+
+enum NotificationPriority {
+    LOW
+    MEDIUM
+    HIGH
+    URGENT
+}
+
+// ===== ALUMNI TESTIMONIALS =====
+model AlumniTestimonial {
+    id        String  @id @default(cuid())
+    programId String
+    program   Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+    // Alumni Information
+    alumniName     String
+    graduationYear Int
+    currentJob     String?
+    currentCompany String?
+
+    // Testimonial Content
+    testimonial String
+    advice      String?
+    rating      Int?    @db.SmallInt // 1-5 stars, using SmallInt for better performance
+
+    // Media
+    profileImage String?
+    videoUrl     String?
+
+    // Status
+    isApproved Boolean @default(false)
+    isFeatured Boolean @default(false)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@index([programId, isApproved]) // For efficient querying of approved testimonials
+    @@map("alumni_testimonials")
+}
+
+// ===== SYSTEM CONFIGURATION =====
+model SystemConfig {
+    id    String @id @default(cuid())
+    key   String @unique
+    value Json
+
+    description String?
+    category    String?
+    isActive    Boolean @default(true)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("system_config")
+}
+
+// ===== ANALYTICS =====
+model UserActivity {
+    id        String  @id @default(cuid())
+    userId    String?
+    sessionId String?
+
+    // Activity Details
+    action     String
+    resource   String?
+    resourceId String?
+    metadata   Json?
+
+    // Context
+    userAgent String?
+    ipAddress String?
+    referrer  String?
+
+    createdAt DateTime @default(now())
+
+    @@index([userId, createdAt]) // For efficient user activity queries
+    @@index([action, createdAt]) // For analytics by action type
+    @@map("user_activities")
+}
+
+// Remove unused Post model as it doesn't seem to fit the schema purpose
