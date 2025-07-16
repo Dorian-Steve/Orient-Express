@@ -2,10 +2,11 @@ import "@/styles/globals.css";
 
 import { type Metadata } from "next";
 import { Geist, Poppins, Inter } from "next/font/google";
-import { ClerkProvider } from "@clerk/nextjs";
 import { TRPCReactProvider } from "@/trpc/react";
 import { ThemeProvider } from "@/components/shared/theme-provider";
 import NavbarWrapper from "@/components/shared/Nav/NavbarWrapper";
+import { Toaster } from "@/components/ui/sonner";
+import { AuthProvider } from "@/components/provicers/auth-povider";
 
 export const metadata: Metadata = {
   title: "Orient-Express",
@@ -26,22 +27,20 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${geist.variable}`} suppressHydrationWarning>
       <body>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <TRPCReactProvider>
-            <ClerkProvider
-              publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
-            >
+        <AuthProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <TRPCReactProvider>
               <NavbarWrapper />
               {children}
               {/* <Footer /> */}
-            </ClerkProvider>
-          </TRPCReactProvider>
-        </ThemeProvider>
+            </TRPCReactProvider>
+          </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   );

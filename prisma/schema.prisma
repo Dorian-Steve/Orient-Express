@@ -2,7 +2,8 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-    provider = "prisma-client-js"
+    provider        = "prisma-client-js"
+    previewFeatures = ["views"]
 }
 
 datasource db {
@@ -59,8 +60,8 @@ model StudentProfile {
 
     // Academic Information
     currentLevel          AcademicLevel?
-    currentProgram        String?
-    currentSpecialization String?
+    currentProgram        String? // Could be linked to Program model if desired
+    currentSpecialization String? // Could be linked to Specialization model if desired
     enrollmentYear        Int?
     gpa                   Float?
 
@@ -131,8 +132,11 @@ model AdvisorProfile {
     userId String @unique
     user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    department  String?
-    specialties String[] // JSON array
+    // Changed 'department' from String to a relation to the new Department model
+    departmentId String?
+    department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+
+    specialties String[] // JSON array - keep as string array for flexibility or link to Specialization
     yearsExp    Int?
     bio         String?
 
@@ -151,12 +155,47 @@ model AdminProfile {
     user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     permissions String[] // JSON array of admin permissions
-    department  String?
+    department  String? // Keep as string or link to Department if needed
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
     @@map("admin_profiles")
+}
+
+// ===== UNIVERSITY STRUCTURE (NEW MODELS) =====
+// Represents broad fields of study like MTIN, MTT, MTI
+model Mention {
+    id          String  @id @default(cuid())
+    name        String  @unique // e.g., "Technologies de L'Informatique et du Numerique"
+    shortName   String  @unique // e.g., "MTIN"
+    description String?
+
+    departments Department[] // Departments belonging to this Mention
+    programs    Program[] // Programs directly under this Mention (if applicable)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("mentions")
+}
+
+// Represents specific departments within a Mention
+model Department {
+    id          String  @id @default(cuid())
+    name        String  @unique // e.g., "Genie Logiciel"
+    description String?
+
+    mentionId String // Link to the broad Mention
+    mention   Mention @relation(fields: [mentionId], references: [id], onDelete: Cascade)
+
+    programs Program[] // Programs offered by this Department
+    advisors AdvisorProfile[] // Advisors associated with this Department
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("departments")
 }
 
 // ===== ACADEMIC PROGRAMS =====
@@ -166,9 +205,15 @@ model Program {
     name        String
     shortName   String?
     description String?
-    department  String
     level       AcademicLevel
     duration    Int // in semesters
+
+    // New relations to Department and Mention
+    departmentId String?
+    department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+
+    mentionId String? // Optional: If a program can directly belong to a Mention without a specific department
+    mention   Mention? @relation(fields: [mentionId], references: [id], onDelete: SetNull)
 
     // Requirements
     prerequisites  String[] // JSON array
@@ -803,5 +848,3 @@ model UserActivity {
     @@index([action, createdAt]) // For analytics by action type
     @@map("user_activities")
 }
-
-// Remove unused Post model as it doesn't seem to fit the schema purpose

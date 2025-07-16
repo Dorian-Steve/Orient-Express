@@ -3,7 +3,7 @@
 import { useState, type MouseEvent, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { Menu, X, Sun, Moon } from "lucide-react";
-import { SignedIn, SignedOut, UserButton, SignInButton } from "@clerk/nextjs";
+// import { SignedIn, SignedOut, UserButton, SignInButton } from "@clerk/nextjs";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -32,7 +32,7 @@ const defaultNavigation: readonly NavigationItem[] = [
   { name: "Home", href: "/" },
   { name: "Orientation", href: "/Orientation" },
   { name: "Studies", href: "/services" },
-  { name: "Jobs/Internships", href: "/contact" },
+  { name: "Jobs/Internships", href: "/Internships" },
 ] as const;
 
 // Type-safe theme selector component
@@ -177,7 +177,7 @@ const Navbar: React.FC<NavbarProps> = ({
             </div>
 
             {/* Desktop Auth */}
-            <div className="hidden md:block">
+            {/* <div className="hidden md:block">
               <SignedOut>
                 <SignInButton>
                   <Button
@@ -199,7 +199,7 @@ const Navbar: React.FC<NavbarProps> = ({
                   }}
                 />
               </SignedIn>
-            </div>
+            </div> */}
 
             {/* Mobile Menu */}
             <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -259,7 +259,7 @@ const Navbar: React.FC<NavbarProps> = ({
                       </div>
                     </div>
 
-                    <div className="flex justify-center">
+                    {/* <div className="flex justify-center">
                       <SignedOut>
                         <SignInButton>
                           <Button
@@ -283,7 +283,7 @@ const Navbar: React.FC<NavbarProps> = ({
                           <span className="text-sm font-medium">Account</span>
                         </div>
                       </SignedIn>
-                    </div>
+                    </div> */}
                   </div>
                 </div>
               </SheetContent>
