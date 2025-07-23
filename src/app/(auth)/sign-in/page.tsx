@@ -54,6 +54,7 @@ export default function SignInPage() {
             onChange={(e) => setEmail(e.target.value)}
             className="w-full rounded-md border p-2"
             required
+            placeholder="Enter your email"
           />
         </div>
 
@@ -65,6 +66,7 @@ export default function SignInPage() {
             onChange={(e) => setPassword(e.target.value)}
             className="w-full rounded-md border p-2"
             required
+            placeholder="Enter your password"
           />
         </div>
 

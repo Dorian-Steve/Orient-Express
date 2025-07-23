@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
     provider        = "prisma-client-js"
     previewFeatures = ["views"]
@@ -13,17 +10,18 @@ datasource db {
 
 // ===== USER MANAGEMENT =====
 model User {
-    id        String   @id @default(cuid())
-    clerkId   String   @unique
-    email     String   @unique
-    firstName String?
-    lastName  String?
-    imageUrl  String?
-    role      UserRole @default(STUDENT)
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    id               String   @id @default(cuid())
+    email            String   @unique @db.VarChar(255)
+    firstName        String?  @db.VarChar(255)
+    lastName         String?  @db.VarChar(255)
+    imageUrl         String?  @db.VarChar(255)
+    schoolId         String   @unique @db.VarChar(255)
+    role             UserRole @default(STUDENT)
+    createdAt        DateTime @default(now())
+    updatedAt        DateTime @updatedAt
+    passwordHash     String?  @db.VarChar(255)
+    profileCompleted Boolean  @default(false)
 
-    // Relations
     studentProfile    StudentProfile?
     advisorProfile    AdvisorProfile?
     adminProfile      AdminProfile?
@@ -38,6 +36,17 @@ model User {
     @@map("users")
 }
 
+model ValidSchoolId {
+    id        Int      @id @default(autoincrement())
+    schoolId  String   @unique @db.VarChar(255)
+    userRole  UserRole
+    isUsed    Boolean  @default(false)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("valid_school_ids")
+}
+
 enum UserRole {
     STUDENT
     ADVISOR
@@ -47,50 +56,41 @@ enum UserRole {
 // ===== STUDENT PROFILES =====
 model StudentProfile {
     id     String @id @default(cuid())
-    userId String @unique
+    userId String @unique @db.VarChar(255)
     user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    // Personal Information
-    studentId   String?   @unique
-    phoneNumber String?
-    dateOfBirth DateTime?
-    gender      Gender?
-    nationality String?
-    address     String?
-
-    // Academic Information
+    studentId             String?          @unique @db.VarChar(255)
+    phoneNumber           String?          @db.VarChar(20)
+    dateOfBirth           DateTime?
+    gender                Gender?
+    nationality           String?          @db.VarChar(100)
+    address               String?          @db.VarChar(255)
     currentLevel          AcademicLevel?
-    currentProgram        String? // Could be linked to Program model if desired
-    currentSpecialization String? // Could be linked to Specialization model if desired
+    currentProgram        String?          @db.VarChar(255)
+    currentSpecialization String?          @db.VarChar(255)
     enrollmentYear        Int?
     gpa                   Float?
-
-    // Academic Background
-    previousEducation  String?
-    baccalaureateType  String?
-    baccalaureateGrade String?
-    mathsGrade         Float?
-    physicsGrade       Float?
-    chemistryGrade     Float?
-    frenchGrade        Float?
-    englishGrade       Float?
-
-    // Professional Aspirations
-    careerGoals           String?
-    preferredSectors      String[] // JSON array of sectors
+    previousEducation     String?          @db.VarChar(255)
+    baccalaureateType     String?          @db.VarChar(100)
+    baccalaureateGrade    String?          @db.VarChar(50)
+    mathsGrade            Float?
+    physicsGrade          Float?
+    chemistryGrade        Float?
+    frenchGrade           Float?
+    englishGrade          Float?
+    careerGoals           String?          @db.VarChar(500)
+    preferredSectors      String[]
     workEnvironmentPref   WorkEnvironment?
-    geographicConstraints String?
-    familyConstraints     String?
-    personalValues        String[] // JSON array of values
+    geographicConstraints String?          @db.VarChar(255)
+    familyConstraints     String?          @db.VarChar(255)
+    personalValues        String[]
 
-    // Profile Status
     profileCompleted  Boolean  @default(false)
     lastProfileUpdate DateTime @default(now())
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    // Relations
     academicForms   AcademicForm[]
     aspirationForms AspirationForm[]
 
@@ -129,21 +129,18 @@ enum WorkEnvironment {
 // ===== OTHER PROFILES =====
 model AdvisorProfile {
     id     String @id @default(cuid())
-    userId String @unique
+    userId String @unique @db.VarChar(255)
     user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    // Changed 'department' from String to a relation to the new Department model
-    departmentId String?
+    departmentId String?     @db.VarChar(255)
     department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
 
-    specialties String[] // JSON array - keep as string array for flexibility or link to Specialization
+    specialties String[]
     yearsExp    Int?
-    bio         String?
+    bio         String?  @db.VarChar(1000)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    // Relations
     appointments Appointment[]
 
     @@map("advisor_profiles")
@@ -151,11 +148,11 @@ model AdvisorProfile {
 
 model AdminProfile {
     id     String @id @default(cuid())
-    userId String @unique
+    userId String @unique @db.VarChar(255)
     user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    permissions String[] // JSON array of admin permissions
-    department  String? // Keep as string or link to Department if needed
+    permissions String[]
+    department  String?  @db.VarChar(255)
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
@@ -164,15 +161,13 @@ model AdminProfile {
 }
 
 // ===== UNIVERSITY STRUCTURE (NEW MODELS) =====
-// Represents broad fields of study like MTIN, MTT, MTI
 model Mention {
-    id          String  @id @default(cuid())
-    name        String  @unique // e.g., "Technologies de L'Informatique et du Numerique"
-    shortName   String  @unique // e.g., "MTIN"
-    description String?
-
-    departments Department[] // Departments belonging to this Mention
-    programs    Program[] // Programs directly under this Mention (if applicable)
+    id          String       @id @default(cuid())
+    name        String       @unique @db.VarChar(255)
+    shortName   String       @unique @db.VarChar(50)
+    description String?      @db.VarChar(1000)
+    departments Department[]
+    programs    Program[]
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
@@ -180,17 +175,15 @@ model Mention {
     @@map("mentions")
 }
 
-// Represents specific departments within a Mention
 model Department {
     id          String  @id @default(cuid())
-    name        String  @unique // e.g., "Genie Logiciel"
-    description String?
+    name        String  @unique @db.VarChar(255)
+    description String? @db.VarChar(1000)
+    mentionId   String  @db.VarChar(255)
+    mention     Mention @relation(fields: [mentionId], references: [id], onDelete: Cascade)
 
-    mentionId String // Link to the broad Mention
-    mention   Mention @relation(fields: [mentionId], references: [id], onDelete: Cascade)
-
-    programs Program[] // Programs offered by this Department
-    advisors AdvisorProfile[] // Advisors associated with this Department
+    programs Program[]
+    advisors AdvisorProfile[]
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
@@ -201,43 +194,36 @@ model Department {
 // ===== ACADEMIC PROGRAMS =====
 model Program {
     id          String        @id @default(cuid())
-    code        String        @unique
-    name        String
-    shortName   String?
-    description String?
+    code        String        @unique @db.VarChar(50)
+    name        String        @db.VarChar(255)
+    shortName   String?       @db.VarChar(50)
+    description String?       @db.VarChar(1000)
     level       AcademicLevel
-    duration    Int // in semesters
+    duration    Int
 
-    // New relations to Department and Mention
-    departmentId String?
+    departmentId String?     @db.VarChar(255)
     department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
 
-    mentionId String? // Optional: If a program can directly belong to a Mention without a specific department
+    mentionId String?  @db.VarChar(255)
     mention   Mention? @relation(fields: [mentionId], references: [id], onDelete: SetNull)
 
-    // Requirements
-    prerequisites  String[] // JSON array
+    prerequisites  String[]
     minGpaRequired Float?
     maxCapacity    Int?
 
-    // Program Details
-    objectives      String?
-    skillsDeveloped String[] // JSON array
-    coursework      String?
-
-    // Career Information
-    careerProspects String[] // JSON array
+    objectives      String?  @db.VarChar(1000)
+    skillsDeveloped String[]
+    coursework      String?  @db.VarChar(1000)
+    careerProspects String[]
     averageSalary   Float?
     employmentRate  Float?
 
-    // Status
     isActive        Boolean @default(true)
     applicationOpen Boolean @default(true)
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    // Relations
     specializations    Specialization[]
     recommendations    Recommendation[]
     favoritePrograms   FavoriteProgram[]
@@ -250,12 +236,12 @@ model Program {
 
 model Specialization {
     id        String  @id @default(cuid())
-    programId String
+    programId String  @db.VarChar(255)
     program   Program @relation(fields: [programId], references: [id], onDelete: Cascade)
 
-    name         String
-    description  String?
-    requirements String[] // JSON array
+    name         String   @db.VarChar(255)
+    description  String?  @db.VarChar(1000)
+    requirements String[]
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
@@ -266,32 +252,25 @@ model Specialization {
 // ===== ASSESSMENT FORMS =====
 model AcademicForm {
     id        String         @id @default(cuid())
-    studentId String
+    studentId String         @db.VarChar(255)
     student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
-    // Academic History
     currentLevel          AcademicLevel
-    previousGrades        Json // Detailed grades by subject
-    academicStrengths     String[] // JSON array
-    academicWeaknesses    String[] // JSON array
-    favoriteSubjects      String[] // JSON array
-    leastFavoriteSubjects String[] // JSON array
+    previousGrades        Json
+    academicStrengths     String[]
+    academicWeaknesses    String[]
+    favoriteSubjects      String[]
+    leastFavoriteSubjects String[]
 
-    // Learning Preferences
     learningStyle         LearningStyle?
     preferredTeachingMode TeachingMode?
-    studyHabits           String?
-
-    // Academic Goals
-    shortTermGoals String?
-    longTermGoals  String?
-
-    // Completion Status
-    isCompleted Boolean   @default(false)
-    completedAt DateTime?
-
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    studyHabits           String?        @db.VarChar(1000)
+    shortTermGoals        String?        @db.VarChar(1000)
+    longTermGoals         String?        @db.VarChar(1000)
+    isCompleted           Boolean        @default(false)
+    completedAt           DateTime?
+    createdAt             DateTime       @default(now())
+    updatedAt             DateTime       @updatedAt
 
     @@map("academic_forms")
 }
@@ -314,38 +293,32 @@ enum TeachingMode {
 
 model AspirationForm {
     id        String         @id @default(cuid())
-    studentId String
+    studentId String         @db.VarChar(255)
     student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
-    // Career Aspirations
-    dreamJob            String?
-    preferredIndustries String[] // JSON array
+    dreamJob            String?          @db.VarChar(255)
+    preferredIndustries String[]
     workEnvironmentPref WorkEnvironment?
     salaryExpectations  SalaryRange?
-    workLifeBalance     Int? // Scale 1-10
+    workLifeBalance     Int?
 
-    // Professional Values
-    importantValues      String[] // JSON array
+    importantValues      String[]
     leadershipInterest   Boolean  @default(false)
     entrepreneurialGoals Boolean  @default(false)
     internationalCareer  Boolean  @default(false)
 
-    // Constraints and Preferences
     geographicFlexibility Boolean @default(true)
-    familyConstraints     String?
-    physicalLimitations   String?
+    familyConstraints     String? @db.VarChar(255)
+    physicalLimitations   String? @db.VarChar(255)
 
-    // Motivations
-    primaryMotivations String[] // JSON array
-    roleModels         String?
-    inspirationalStory String?
+    primaryMotivations String[]
+    roleModels         String?  @db.VarChar(255)
+    inspirationalStory String?  @db.VarChar(1000)
 
-    // Completion Status
     isCompleted Boolean   @default(false)
     completedAt DateTime?
-
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    createdAt   DateTime  @default(now())
+    updatedAt   DateTime  @updatedAt
 
     @@map("aspiration_forms")
 }
@@ -362,25 +335,22 @@ enum SalaryRange {
 // ===== ASSESSMENT TESTS =====
 model Test {
     id          String       @id @default(cuid())
-    name        String
-    description String?
+    name        String       @db.VarChar(255)
+    description String?      @db.VarChar(1000)
     type        TestType
     category    TestCategory
 
-    // Test Configuration
-    questions    Json // Array of questions with options
-    timeLimit    Int? // in minutes
+    questions    Json
+    timeLimit    Int?
     passingScore Float?
     maxAttempts  Int    @default(3)
 
-    // Status
     isActive   Boolean    @default(true)
     difficulty Difficulty @default(MEDIUM)
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    // Relations
     testResults TestResult[]
 
     @@map("tests")
@@ -413,26 +383,22 @@ enum Difficulty {
 
 model TestResult {
     id     String @id @default(cuid())
-    userId String
+    userId String @db.VarChar(255)
     user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-    testId String
+    testId String @db.VarChar(255)
     test   Test   @relation(fields: [testId], references: [id], onDelete: Cascade)
 
-    // Results
     score      Float
     maxScore   Float
     percentage Float
-    responses  Json // User's answers
-    analysis   Json // Detailed analysis of results
+    responses  Json
+    analysis   Json
 
-    // Timing
-    timeSpent   Int // in seconds
-    startedAt   DateTime
-    completedAt DateTime?
-
-    // Status
-    isCompleted   Boolean @default(false)
-    attemptNumber Int     @default(1)
+    timeSpent     Int
+    startedAt     DateTime
+    completedAt   DateTime?
+    isCompleted   Boolean   @default(false)
+    attemptNumber Int       @default(1)
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
@@ -444,32 +410,28 @@ model TestResult {
 // ===== RECOMMENDATION SYSTEM =====
 model Recommendation {
     id        String  @id @default(cuid())
-    userId    String
+    userId    String  @db.VarChar(255)
     user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-    programId String
+    programId String  @db.VarChar(255)
     program   Program @relation(fields: [programId], references: [id], onDelete: Cascade)
 
-    // Recommendation Details
-    score           Float // Compatibility score (0-100)
-    confidence      Float // Algorithm confidence (0-1)
-    reasoning       String[] // JSON array of reasons
-    strengths       String[] // Why this program fits
-    challenges      String[] // Potential challenges
-    recommendations String[] // Additional advice
+    score           Float
+    confidence      Float
+    reasoning       String[]
+    strengths       String[]
+    challenges      String[]
+    recommendations String[]
 
-    // Algorithm Information
-    algorithmVersion String @default("1.0")
-    criteriaWeights  Json // Weights used in calculation
+    algorithmVersion String @default("1.0") @db.VarChar(50)
+    criteriaWeights  Json
 
-    // User Interaction
     userFeedback RecommendationFeedback?
     isBookmarked Boolean                 @default(false)
     viewedAt     DateTime?
+    createdAt    DateTime                @default(now())
+    updatedAt    DateTime                @updatedAt
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    @@unique([userId, programId]) // Prevent duplicate recommendations
+    @@unique([userId, programId])
     @@map("recommendations")
 }
 
@@ -484,13 +446,13 @@ enum RecommendationFeedback {
 // ===== FAVORITES AND BOOKMARKS =====
 model FavoriteProgram {
     id        String  @id @default(cuid())
-    userId    String
+    userId    String  @db.VarChar(255)
     user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-    programId String
+    programId String  @db.VarChar(255)
     program   Program @relation(fields: [programId], references: [id], onDelete: Cascade)
 
-    notes    String?
-    priority Int     @default(0) // Higher number = higher priority
+    notes    String? @db.VarChar(1000)
+    priority Int     @default(0)
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
@@ -502,49 +464,48 @@ model FavoriteProgram {
 // ===== INTERNSHIPS AND CAREER OPPORTUNITIES =====
 model Internship {
     id        String   @id @default(cuid())
-    programId String?
+    programId String?  @db.VarChar(255)
     program   Program? @relation(fields: [programId], references: [id], onDelete: SetNull)
 
     // Company Information
-    companyName    String
-    companyLogo    String?
-    companyWebsite String?
-    companySize    CompanySize?
-    industry       String
+    companyName    String       @db.VarChar(255) // Company name, mandatory
+    companyLogo    String?      @db.VarChar(255) // Optional URL for company logo
+    companyWebsite String?      @db.VarChar(255) // Optional company website URL
+    companySize    CompanySize? // Optional company size using enum
+    industry       String       @db.VarChar(255) // Industry of the company, mandatory
 
     // Position Details
-    title            String
-    description      String
-    requirements     String[] // JSON array
-    responsibilities String[] // JSON array
-    skills           String[] // JSON array
+    title            String   @db.VarChar(255) // Internship title, mandatory
+    description      String   @db.Text // Detailed description of the internship, mandatory
+    requirements     String[] // JSON array of requirements, mandatory
+    responsibilities String[] // JSON array of responsibilities, mandatory
+    skills           String[] // JSON array of required skills, mandatory
 
     // Practical Information
-    location            String
-    duration            Int // in months
-    stipend             Float?
-    isRemote            Boolean   @default(false)
-    startDate           DateTime?
-    applicationDeadline DateTime?
+    location            String    @db.VarChar(255) // Internship location, mandatory
+    duration            Int // Duration in months, mandatory
+    stipend             Float? // Optional stipend amount
+    isRemote            Boolean   @default(false) // Indicates if the internship is remote
+    startDate           DateTime? // Optional start date
+    applicationDeadline DateTime? // Optional application deadline
 
     // Contact Information
-    contactEmail  String?
-    contactPhone  String?
-    contactPerson String?
-
+    contactEmail   String?  @db.VarChar(255) // Optional contact email
+    contactPhone   String?  @db.VarChar(20) // Optional contact phone number
+    contactPerson  String?  @db.VarChar(255) // Optional contact person name
     // Status
-    isActive       Boolean @default(true)
-    spotsAvailable Int?
-
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    isActive       Boolean  @default(true) // Indicates if the internship listing is active
+    spotsAvailable Int? // Optional number of spots available
+    createdAt      DateTime @default(now()) // Timestamp for creation
+    updatedAt      DateTime @updatedAt // Timestamp for last update
 
     // Relations
-    internshipMatches InternshipMatch[]
+    internshipMatches InternshipMatch[] // One-to-many relation with InternshipMatch
 
-    @@map("internships")
+    @@map("internships") // Maps to the "internships" table
 }
 
+// Enum for company size
 enum CompanySize {
     STARTUP // 1-10 employees
     SMALL // 11-50 employees
@@ -555,72 +516,69 @@ enum CompanySize {
 
 model InternshipMatch {
     id           String     @id @default(cuid())
-    userId       String
-    user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-    internshipId String
-    internship   Internship @relation(fields: [internshipId], references: [id], onDelete: Cascade)
+    userId       String     @db.VarChar(255) // Foreign key to User, mandatory
+    user         User       @relation(fields: [userId], references: [id], onDelete: Cascade) // Relation to User, cascade delete
+    internshipId String     @db.VarChar(255) // Foreign key to Internship, mandatory
+    internship   Internship @relation(fields: [internshipId], references: [id], onDelete: Cascade) // Relation to Internship, cascade delete
 
     // Match Information
-    matchScore Float // 0-100
-    status     ApplicationStatus @default(INTERESTED)
-    appliedAt  DateTime?
-
+    matchScore Float // Compatibility score (0-100), mandatory
+    status     ApplicationStatus @default(INTERESTED) // Application status using enum
+    appliedAt  DateTime? // Optional timestamp when the user applied
     // User Notes
-    notes String?
+    notes      String?           @db.VarChar(1000) // Optional notes by the user
+    createdAt  DateTime          @default(now()) // Timestamp for creation
+    updatedAt  DateTime          @updatedAt // Timestamp for last update
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    @@unique([userId, internshipId])
-    @@map("internship_matches")
+    @@unique([userId, internshipId]) // Ensures unique match entry for a user and internship
+    @@map("internship_matches") // Maps to the "internship_matches" table
 }
 
 model Job {
     id        String   @id @default(cuid())
-    programId String?
-    program   Program? @relation(fields: [programId], references: [id], onDelete: SetNull)
+    programId String?  @db.VarChar(255) // Optional foreign key to Program (if linked to a specific program)
+    program   Program? @relation(fields: [programId], references: [id], onDelete: SetNull) // Relation to Program, set null on delete
 
     // Company Information
-    companyName    String
-    companyLogo    String?
-    companyWebsite String?
-    companySize    CompanySize?
-    industry       String
+    companyName    String       @db.VarChar(255) // Company name, mandatory
+    companyLogo    String?      @db.VarChar(255) // Optional URL for company logo
+    companyWebsite String?      @db.VarChar(255) // Optional company website URL
+    companySize    CompanySize? // Optional company size
+    industry       String       @db.VarChar(255) // Industry of the company, mandatory
 
     // Position Details
-    title            String
-    description      String
-    requirements     String[] // JSON array
-    responsibilities String[] // JSON array
-    skills           String[] // JSON array
+    title            String   @db.VarChar(255) // Job title, mandatory
+    description      String   @db.Text // Detailed description of the job, mandatory
+    requirements     String[] // JSON array of requirements, mandatory
+    responsibilities String[] // JSON array of responsibilities, mandatory
+    skills           String[] // JSON array of required skills, mandatory
 
     // Practical Information
-    location            String
-    employmentType      EmploymentType @default(FULL_TIME)
-    salary              Float?
-    salaryRange         SalaryRange?
-    isRemote            Boolean        @default(false)
-    startDate           DateTime?
-    applicationDeadline DateTime?
+    location            String         @db.VarChar(255) // Job location, mandatory
+    employmentType      EmploymentType @default(FULL_TIME) // Type of employment using enum
+    salary              Float? // Optional salary amount
+    salaryRange         SalaryRange? // Optional salary range using enum
+    isRemote            Boolean        @default(false) // Indicates if the job is remote
+    startDate           DateTime? // Optional start date
+    applicationDeadline DateTime? // Optional application deadline
 
     // Contact Information
-    contactEmail  String?
-    contactPhone  String?
-    contactPerson String?
-
+    contactEmail   String?  @db.VarChar(255) // Optional contact email
+    contactPhone   String?  @db.VarChar(20) // Optional contact phone number
+    contactPerson  String?  @db.VarChar(255) // Optional contact person name
     // Status
-    isActive       Boolean @default(true)
-    spotsAvailable Int?
-
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    isActive       Boolean  @default(true) // Indicates if the job listing is active
+    spotsAvailable Int? // Optional number of spots available
+    createdAt      DateTime @default(now()) // Timestamp for creation
+    updatedAt      DateTime @updatedAt // Timestamp for last update
 
     // Relations
-    jobMatches JobMatch[]
+    jobMatches JobMatch[] // One-to-many relation with JobMatch
 
-    @@map("jobs")
+    @@map("jobs") // Maps to the "jobs" table
 }
 
+// Enum for employment types
 enum EmploymentType {
     FULL_TIME
     PART_TIME
@@ -632,26 +590,25 @@ enum EmploymentType {
 
 model JobMatch {
     id     String @id @default(cuid())
-    userId String
-    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-    jobId  String
-    job    Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+    userId String @db.VarChar(255) // Foreign key to User, mandatory
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade) // Relation to User, cascade delete
+    jobId  String @db.VarChar(255) // Foreign key to Job, mandatory
+    job    Job    @relation(fields: [jobId], references: [id], onDelete: Cascade) // Relation to Job, cascade delete
 
     // Match Information
-    matchScore Float // 0-100
-    status     ApplicationStatus @default(INTERESTED)
-    appliedAt  DateTime?
-
+    matchScore Float // Compatibility score (0-100), mandatory
+    status     ApplicationStatus @default(INTERESTED) // Application status using enum
+    appliedAt  DateTime? // Optional timestamp when the user applied
     // User Notes
-    notes String?
+    notes      String?           @db.VarChar(1000) // Optional notes by the user
+    createdAt  DateTime          @default(now()) // Timestamp for creation
+    updatedAt  DateTime          @updatedAt // Timestamp for last update
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    @@unique([userId, jobId])
-    @@map("job_matches")
+    @@unique([userId, jobId]) // Ensures unique match entry for a user and job
+    @@map("job_matches") // Maps to the "job_matches" table
 }
 
+// Enum for application statuses
 enum ApplicationStatus {
     INTERESTED
     APPLIED
@@ -666,39 +623,40 @@ enum ApplicationStatus {
 // ===== APPOINTMENTS AND COUNSELING =====
 model Appointment {
     id        String          @id @default(cuid())
-    studentId String
-    student   User            @relation(fields: [studentId], references: [id], onDelete: Cascade)
-    advisorId String?
-    advisor   AdvisorProfile? @relation(fields: [advisorId], references: [id], onDelete: SetNull)
+    studentId String          @db.VarChar(255) // Foreign key to User (student), mandatory
+    student   User            @relation(fields: [studentId], references: [id], onDelete: Cascade) // Relation to User, cascade delete
+    advisorId String?         @db.VarChar(255) // Optional foreign key to AdvisorProfile
+    advisor   AdvisorProfile? @relation(fields: [advisorId], references: [id], onDelete: SetNull) // Relation to AdvisorProfile, set null on delete
 
     // Appointment Details
-    title       String
-    description String?
-    type        AppointmentType
-    mode        MeetingMode     @default(IN_PERSON)
+    title       String          @db.VarChar(255) // Appointment title, mandatory
+    description String?         @db.VarChar(1000) // Optional description
+    type        AppointmentType // Type of appointment, mandatory
+    mode        MeetingMode     @default(IN_PERSON) // Meeting mode (in-person, video call, etc.)
 
     // Scheduling
-    scheduledAt DateTime
-    duration    Int      @default(60) // in minutes
-    location    String?
-    meetingLink String?
+    scheduledAt DateTime // Scheduled date and time, mandatory
+    duration    Int      @default(60) // Duration in minutes, default 60
+    location    String?  @db.VarChar(255) // Optional physical location
+    meetingLink String?  @db.VarChar(255) // Optional link for virtual meetings
 
     // Status
-    status          AppointmentStatus @default(SCHEDULED)
-    cancelReason    String?
-    rescheduleCount Int               @default(0)
+    status          AppointmentStatus @default(SCHEDULED) // Current status of the appointment
+    cancelReason    String?           @db.VarChar(1000) // Optional reason for cancellation
+    rescheduleCount Int               @default(0) // Number of times the appointment has been rescheduled
 
     // Notes
-    advisorNotes  String?
-    studentNotes  String?
-    followUpItems String[] // JSON array
+    advisorNotes  String?  @db.VarChar(1000) // Optional notes from the advisor
+    studentNotes  String?  @db.VarChar(1000) // Optional notes from the student
+    followUpItems String[] // JSON array of follow-up items
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    createdAt DateTime @default(now()) // Timestamp for creation
+    updatedAt DateTime @updatedAt // Timestamp for last update
 
-    @@map("appointments")
+    @@map("appointments") // Maps to the "appointments" table
 }
 
+// Enum for appointment types
 enum AppointmentType {
     ACADEMIC_GUIDANCE
     CAREER_COUNSELING
@@ -709,6 +667,7 @@ enum AppointmentType {
     MENTAL_HEALTH
 }
 
+// Enum for meeting modes
 enum MeetingMode {
     IN_PERSON
     VIDEO_CALL
@@ -716,6 +675,7 @@ enum MeetingMode {
     CHAT
 }
 
+// Enum for appointment statuses
 enum AppointmentStatus {
     SCHEDULED
     CONFIRMED
@@ -729,34 +689,33 @@ enum AppointmentStatus {
 // ===== NOTIFICATIONS =====
 model Notification {
     id     String @id @default(cuid())
-    userId String
-    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId String @db.VarChar(255) // Foreign key to User, mandatory
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade) // Relation to User, cascade delete
 
     // Notification Content
-    title    String
-    message  String
-    type     NotificationType
-    priority NotificationPriority @default(MEDIUM)
+    title    String               @db.VarChar(255) // Notification title, mandatory
+    message  String               @db.Text // Notification message content, mandatory
+    type     NotificationType // Type of notification, mandatory
+    priority NotificationPriority @default(MEDIUM) // Priority of the notification
 
     // Notification Data
-    data      Json? // Additional data for the notification
-    actionUrl String? // URL to navigate when clicked
+    data      Json? // Additional data for the notification, optional
+    actionUrl String? @db.VarChar(255) // URL to navigate when notification is clicked, optional
 
     // Status
-    isRead Boolean   @default(false)
-    readAt DateTime?
-
+    isRead      Boolean   @default(false) // Indicates if the notification has been read
+    readAt      DateTime? // Optional timestamp when the notification was read
     // Delivery
-    deliveredAt DateTime?
-    expiresAt   DateTime?
+    deliveredAt DateTime? // Optional timestamp when the notification was delivered
+    expiresAt   DateTime? // Optional timestamp when the notification expires
+    createdAt   DateTime  @default(now()) // Timestamp for creation
+    updatedAt   DateTime  @updatedAt // Timestamp for last update
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    @@index([userId, isRead]) // For efficient querying of unread notifications
-    @@map("notifications")
+    @@index([userId, isRead]) // Index for efficient querying of unread notifications for a user
+    @@map("notifications") // Maps to the "notifications" table
 }
 
+// Enum for notification types
 enum NotificationType {
     RECOMMENDATION_READY
     APPOINTMENT_REMINDER
@@ -770,6 +729,7 @@ enum NotificationType {
     WELCOME
 }
 
+// Enum for notification priority
 enum NotificationPriority {
     LOW
     MEDIUM
@@ -779,72 +739,71 @@ enum NotificationPriority {
 
 // ===== ALUMNI TESTIMONIALS =====
 model AlumniTestimonial {
-    id        String  @id @default(cuid())
-    programId String
-    program   Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+    id        String  @id @default(cuid()) // Unique ID for the testimonial
+    programId String  @db.VarChar(255) // Foreign key to Program, mandatory
+    program   Program @relation(fields: [programId], references: [id], onDelete: Cascade) // Relation to Program, cascade delete
 
     // Alumni Information
-    alumniName     String
-    graduationYear Int
-    currentJob     String?
-    currentCompany String?
+    alumniName     String  @db.VarChar(255) // Name of the alumnus, mandatory
+    graduationYear Int // Graduation year, mandatory
+    currentJob     String? @db.VarChar(255) // Optional current job title
+    currentCompany String? @db.VarChar(255) // Optional current company
 
     // Testimonial Content
-    testimonial String
-    advice      String?
-    rating      Int?    @db.SmallInt // 1-5 stars, using SmallInt for better performance
+    testimonial String  @db.Text // Full testimonial text, mandatory
+    advice      String? @db.Text // Optional advice from the alumnus
+    rating      Int?    @db.SmallInt // Optional rating (1-5 stars) using SmallInt for efficiency
 
     // Media
-    profileImage String?
-    videoUrl     String?
+    profileImage String? @db.VarChar(255) // Optional URL for profile image
+    videoUrl     String? @db.VarChar(255) // Optional URL for testimonial video
 
     // Status
-    isApproved Boolean @default(false)
-    isFeatured Boolean @default(false)
+    isApproved Boolean @default(false) // Indicates if the testimonial is approved for display
+    isFeatured Boolean @default(false) // Indicates if the testimonial is featured
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    createdAt DateTime @default(now()) // Timestamp for creation
+    updatedAt DateTime @updatedAt // Timestamp for last update
 
-    @@index([programId, isApproved]) // For efficient querying of approved testimonials
-    @@map("alumni_testimonials")
+    @@index([programId, isApproved]) // Index for efficient querying of approved testimonials by program
+    @@map("alumni_testimonials") // Maps to the "alumni_testimonials" table
 }
 
 // ===== SYSTEM CONFIGURATION =====
 model SystemConfig {
     id    String @id @default(cuid())
-    key   String @unique
-    value Json
+    key   String @unique @db.VarChar(255) // Unique configuration key, mandatory
+    value Json // Configuration value, can be any JSON type, mandatory
 
-    description String?
-    category    String?
-    isActive    Boolean @default(true)
+    description String? @db.VarChar(1000) // Optional description of the configuration
+    category    String? @db.VarChar(255) // Optional category for grouping configurations
+    isActive    Boolean @default(true) // Indicates if the configuration is active
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    createdAt DateTime @default(now()) // Timestamp for creation
+    updatedAt DateTime @updatedAt // Timestamp for last update
 
-    @@map("system_config")
+    @@map("system_config") // Maps to the "system_config" table
 }
 
 // ===== ANALYTICS =====
 model UserActivity {
     id        String  @id @default(cuid())
-    userId    String?
-    sessionId String?
+    userId    String? @db.VarChar(255) // Optional foreign key to User (if activity is linked to a logged-in user)
+    sessionId String? @db.VarChar(255) // Optional session ID for tracking anonymous or logged-out activity
 
     // Activity Details
-    action     String
-    resource   String?
-    resourceId String?
-    metadata   Json?
+    action     String  @db.VarChar(255) // Description of the action performed (e.g., "page_view", "button_click"), mandatory
+    resource   String? @db.VarChar(255) // Optional type of resource acted upon (e.g., "program", "test")
+    resourceId String? @db.VarChar(255) // Optional ID of the resource acted upon
+    metadata   Json? // Optional additional metadata about the action
 
     // Context
-    userAgent String?
-    ipAddress String?
-    referrer  String?
+    userAgent String?  @db.VarChar(255) // Optional user agent string from the client
+    ipAddress String?  @db.VarChar(45) // Optional IP address of the user (IPv4 or IPv6)
+    referrer  String?  @db.VarChar(255) // Optional referrer URL
+    createdAt DateTime @default(now()) // Timestamp for when the activity occurred
 
-    createdAt DateTime @default(now())
-
-    @@index([userId, createdAt]) // For efficient user activity queries
-    @@index([action, createdAt]) // For analytics by action type
-    @@map("user_activities")
+    @@index([userId, createdAt]) // Index for efficient querying of user activity over time
+    @@index([action, createdAt]) // Index for efficient analytics by action type over time
+    @@map("user_activities") // Maps to the "user_activities" table
 }

@@ -4,9 +4,9 @@ import { type Metadata } from "next";
 import { Geist, Poppins, Inter } from "next/font/google";
 import { TRPCReactProvider } from "@/trpc/react";
 import { ThemeProvider } from "@/components/shared/theme-provider";
-import NavbarWrapper from "@/components/shared/Nav/NavbarWrapper";
 import { Toaster } from "@/components/ui/sonner";
-import { AuthProvider } from "@/components/provicers/auth-povider";
+import { AuthProvider } from "@/components/providers/auth-provider";
+import { Navbar } from "@/components/shared/Nav/Navbar";
 
 export const metadata: Metadata = {
   title: "Orient-Express",
@@ -35,7 +35,6 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             <TRPCReactProvider>
-              <NavbarWrapper />
               {children}
               {/* <Footer /> */}
             </TRPCReactProvider>
