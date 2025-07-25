@@ -1,8 +1,21 @@
-import { createClient } from "@/utils/supabase/server";
+const { PrismaClient } = require('@prisma/client');
 
-export default async function Instruments() {
-  const supabase = await createClient();
-  const { data: instruments } = await supabase.from("instruments").select();
+const prisma = new PrismaClient();
 
-  return <pre>{JSON.stringify(instruments, null, 2)}</pre>;
+async function main() {
+  //change to reference a table in your schema
+  const val = await prisma.<SOME_TABLE_NAME>.findMany({
+    take: 10,
+  });
+  console.log(val);
 }
+
+main()
+  .then(async () => {
+    await prisma.$disconnect();
+  })
+  .catch(async (e) => {
+    console.error(e);
+    await prisma.$disconnect();
+  process.exit(1);
+});
