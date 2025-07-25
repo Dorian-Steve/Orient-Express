@@ -1,18 +1,15 @@
-// src/app/(dashboard)/layout.tsx (or src/app/dashboard/layout.tsx)
-"use client"; // <--- CRITICAL FIX: Add this line at the very top
+"use client";
 
 import { Navbar } from "@/components/shared/Nav/Navbar";
-import { useAuth } from "@/components/providers/auth-provider"; // Keep this import if you need loading status
+import { useAuth } from "@/components/providers/auth-provider";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // The useAuth hook can now be safely used here as DashboardLayout is a client component
   const { status } = useAuth();
 
-  // You can keep a loading state if desired
   if (status === "loading") {
     return (
       <div className="flex h-screen items-center justify-center">

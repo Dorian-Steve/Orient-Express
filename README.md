@@ -133,48 +133,6 @@ pnpm run dev
 
 The application should now be running at http://localhost:3000.
 
-## Available Scripts
-
-In the project directory, you can run:
-
-### `pnpm dev`
-
-Runs the app in the development mode.
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
-
-The page will reload if you make edits.
-You will also see any lint errors in the console.
-
-### `pnpm build`
-
-Builds the app for production to the `build` folder.
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.
-Your app is ready to be deployed!
-
-See the section about [deployment](https://create.t3.gg/en/deployment/vercel) for more information.
-
-### `pnpm db:generate`
-
-Generates the Prisma client based on your schema.
-
-### `pnpm db:migrate`
-
-Applies database migrations.
-
-### `pnpm db:studio`
-
-Opens the Prisma Studio to view and edit your data.
-
-### `pnpm lint`
-
-Lints the code to catch errors and enforce code style.
-
-### `pnpm format`
-
-Formats the code using Prettier.
-
 ## Project Structure (Key Folders)
 - `src/app`: Next.js App Router routes (pages, API routes, layouts).
 

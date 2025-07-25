@@ -6,7 +6,6 @@ import { TRPCReactProvider } from "@/trpc/react";
 import { ThemeProvider } from "@/components/shared/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/components/providers/auth-provider";
-import { Navbar } from "@/components/shared/Nav/Navbar";
 
 export const metadata: Metadata = {
   title: "Orient-Express",

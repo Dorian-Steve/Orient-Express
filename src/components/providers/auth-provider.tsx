@@ -16,6 +16,7 @@ type User = {
 
 type AuthContextType = {
   user: User | null;
+  status: "loading" | "authenticated" | "unauthenticated";
   login: (user: User) => void;
   logout: () => void;
   updateProfile: (updates: Partial<User>) => void;

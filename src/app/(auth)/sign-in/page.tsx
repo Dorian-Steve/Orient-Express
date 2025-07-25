@@ -1,98 +1,211 @@
 "use client";
 
 import { useState } from "react";
-import { signIn, getSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { signIn } from "next-auth/react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { toast } from "sonner";
+import { Google } from "@/lib/icons/Google";
+// Removed: import { motion } from "framer-motion"; // No longer needed for welcome message animation
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Loader } from "@/components/shared/loader";
+
+import { signInFormSchema } from "@/lib/validations/auth-validators";
+import type { SignInFormValues } from "@/types/user.types";
 
 export default function SignInPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  const form = useForm<SignInFormValues>({
+    resolver: zodResolver(signInFormSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
 
+  const onSubmit = async (values: SignInFormValues) => {
+    setIsLoading(true);
     try {
       const result = await signIn("credentials", {
-        email,
-        password,
         redirect: false,
+        email: values.email,
+        password: values.password,
       });
 
       if (result?.error) {
-        console.error("Sign in failed:", result.error);
+        toast.error("Sign In Failed", {
+          description: result.error || "Invalid email or password.",
+        });
       } else {
-        router.push("/dashboard");
+        toast.success("Signed In Successfully!", {
+          description: "Redirecting to your dashboard...",
+        });
+        router.push("/"); // Redirect to home/dashboard
       }
     } catch (error) {
-      console.error("Sign in failed:", error);
+      console.error("Sign-in error:", error);
+      toast.error("An unexpected error occurred.", {
+        description: "Please try again later.",
+      });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const handleGoogleSignIn = () => {
-    signIn("google", { callbackUrl: "/dashboard" });
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true);
+    try {
+      const result = await signIn("google", {
+        redirect: false,
+        callbackUrl: "/",
+      });
+
+      if (result?.error) {
+        toast.error("Google Sign In Failed", {
+          description:
+            result.error || "Something went wrong with Google sign-in.",
+        });
+      }
+    } catch (error) {
+      console.error("Google sign-in error:", error);
+      toast.error("An unexpected error occurred.", {
+        description: "Please try again later.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleGitHubSignIn = () => {
-    signIn("github", { callbackUrl: "/dashboard" });
-  };
+  // Removed: welcomeVariants constant as motion.div is removed
 
   return (
-    <div className="mx-auto mt-8 max-w-md rounded-lg bg-white p-6 shadow-md">
-      <h1 className="mb-6 text-center text-2xl font-bold">Sign In</h1>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="mb-1 block text-sm font-medium">Email</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-md border p-2"
-            required
-            placeholder="Enter your email"
-          />
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8 dark:bg-gray-900">
+      <div className="w-full max-w-md space-y-8 rounded-lg bg-white p-8 shadow-lg dark:bg-gray-800">
+        {/* Welcome Message (now static) */}
+        <div className="text-center">
+          <h1 className="mb-4 text-4xl font-extrabold text-gray-900 dark:text-white">
+            Welcome Back!
+          </h1>
+          <p className="text-lg text-gray-600 dark:text-gray-300">
+            Sign in to continue your journey.
+          </p>
         </div>
 
-        <div>
-          <label className="mb-1 block text-sm font-medium">Password</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-md border p-2"
-            required
-            placeholder="Enter your password"
-          />
+        <div className="text-center">
+          <h2 className="text-foreground mt-6 text-3xl font-bold tracking-tight">
+            Sign in to your account
+          </h2>
+          <p className="text-muted-foreground mt-2 text-sm">
+            Or{" "}
+            <Link
+              href="/sign-up"
+              className="text-primary font-medium hover:underline"
+            >
+              create a new account
+            </Link>
+          </p>
         </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-md bg-blue-600 p-2 text-white hover:bg-blue-700 disabled:opacity-50"
-        >
-          {loading ? "Signing in..." : "Sign In"}
-        </button>
-      </form>
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="mt-8 space-y-6"
+          >
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email address</FormLabel>
+                  <FormControl>
+                    <Input
+                      id="email"
+                      type="email"
+                      autoComplete="email"
+                      placeholder="you@example.com"
+                      disabled={isLoading}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-      <div className="mt-6 space-y-2">
-        <button
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Password</FormLabel>
+                  <FormControl>
+                    <Input
+                      id="password"
+                      type="password"
+                      autoComplete="current-password"
+                      placeholder="••••••••"
+                      disabled={isLoading}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div>
+              <Button
+                type="submit"
+                className="group relative flex w-full justify-center"
+                disabled={isLoading}
+              >
+                {isLoading && <Loader size="sm" className="absolute left-3" />}
+                Sign In
+              </Button>
+            </div>
+          </form>
+        </Form>
+
+        <div className="relative mt-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="border-border w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="bg-card text-muted-foreground px-2">
+              Or continue with
+            </span>
+          </div>
+        </div>
+
+        <Button
+          variant="outline"
+          className="mt-6 flex w-full items-center justify-center space-x-2"
           onClick={handleGoogleSignIn}
-          className="w-full rounded-md bg-red-600 p-2 text-white hover:bg-red-700"
+          disabled={isLoading}
         >
-          Sign in with Google
-        </button>
-
-        <button
-          onClick={handleGitHubSignIn}
-          className="w-full rounded-md bg-gray-800 p-2 text-white hover:bg-gray-900"
-        >
-          Sign in with GitHub
-        </button>
+          {isLoading ? (
+            <Loader size="sm" />
+          ) : (
+            <>
+              <Google className="h-5 w-5" />
+              <span>Sign in with Google</span>
+            </>
+          )}
+        </Button>
       </div>
     </div>
   );

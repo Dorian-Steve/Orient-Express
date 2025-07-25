@@ -15,3 +15,6 @@ const globalForPrisma = globalThis as unknown as {
 export const db = globalForPrisma.prisma ?? createPrismaClient();
 
 if (env.NODE_ENV !== "production") globalForPrisma.prisma = db;
+
+// Ensure user object is checked before accessing its properties in authentication logic
+// Example: if (req.user) { ... } else { /* handle missing user */ }

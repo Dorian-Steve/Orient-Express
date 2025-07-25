@@ -7,22 +7,20 @@ import {
   useScroll,
 } from "framer-motion";
 import Image from "next/image";
-// import { useTranslations } from "next-intl"; // Abstraction: Permanently removed for now
-
-// CRITICAL FIX: Use Next.js's built-in Link and usePathname
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
+import { useTheme } from "next-themes"; // CRITICAL: Import useTheme for dark mode
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
-  Menu, // For mobile menu open
-  X, // For mobile menu close
+  Menu,
+  X,
   LogOut,
   User,
   Settings,
-  Search, // For search button
-} from "lucide-react"; // Using Lucide for consistency
-
+  Search,
+  Sun, // CRITICAL: Import Sun icon for light mode
+  Moon, // CRITICAL: Import Moon icon for dark mode
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -41,20 +39,18 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-
-import { cn } from "@/lib/utils"; // Assuming you have this utility
-import { useAuth } from "@/components/providers/auth-provider"; // Import useAuth for user data
+import { cn } from "@/lib/utils";
+import { useAuth } from "@/components/providers/auth-provider";
 
 // --- Type Definitions ---
 interface NavigationItem {
   name: string;
   href: string;
-  external?: boolean; // For external links
+  external?: boolean;
 }
 
 interface NavbarProps {
   className?: string;
-  // No children prop here, as Navbar will directly contain its elements
 }
 
 interface NavBodyProps {
@@ -69,22 +65,22 @@ interface NavItemsProps {
 
 interface NavItemComponentProps {
   item: NavigationItem;
-  index: number; // Index is still useful for keys, etc.
+  index: number;
   isHovered: boolean;
   onHover: () => void;
   onLeave: () => void;
-  isActive?: boolean; // Added for active state styling
+  isActive?: boolean;
 }
 
 interface MobileNavItemProps {
   item: NavigationItem;
-  onItemClick: () => void; // Callback to close mobile menu
+  onItemClick: () => void;
 }
 
 interface MobileNavFooterProps {
   onClose: () => void;
-  isAuthenticated: boolean; // Added for login/logout buttons
-  onLogout: () => void; // Added for logout functionality
+  isAuthenticated: boolean;
+  onLogout: () => void;
 }
 
 interface NavbarLogoProps {
@@ -112,9 +108,9 @@ const NAVBAR_ANIMATIONS = {
 
 const SCROLL_THRESHOLD = 0;
 
-// --- Default Navigation Items (Matches the image) ---
+// --- Default Navigation Items ---
 const defaultNavigation: readonly NavigationItem[] = [
-  { name: "Home", href: "/" }, // Changed to "/" for homepage
+  { name: "Home", href: "/" },
   { name: "Academics", href: "/academics" },
   { name: "Resources", href: "/resources" },
   { name: "Events", href: "/events" },
@@ -124,19 +120,40 @@ const defaultNavigation: readonly NavigationItem[] = [
 // --- Navbar Logo Component ---
 export const NavbarLogo: React.FC<NavbarLogoProps> = React.memo(
   ({ size = 32, className, isFooter }) => {
-    // Adjusted default size for better fit
     const subTitleColor = isFooter ? "text-gray-400" : "currentColor";
 
     return (
-      <Link href="/" className="flex items-center space-x-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-sm bg-blue-600">
-          <span className="text-sm font-bold text-white">IUT</span>
-        </div>
+      <Link
+        href="/"
+        className={cn("flex flex-shrink-0 items-center space-x-2", className)}
+        aria-label="Go to homepage"
+      >
+        <Image
+          src={"/assets/images/iut-logo.png"} // Ensure this path is correct and image exists
+          alt="IUT Douala Logo"
+          width={size}
+          height={size}
+          className="rounded-full object-contain"
+          onError={(e) => {
+            // Fallback for missing image: display a simple text logo
+            e.currentTarget.onerror = null; // Prevent infinite loop
+            e.currentTarget.style.display = "none"; // Hide the broken image icon
+            const parent = e.currentTarget.parentElement;
+            if (parent) {
+              const textLogo = document.createElement("div");
+              textLogo.className =
+                "flex h-8 w-8 items-center justify-center rounded-sm bg-blue-600";
+              textLogo.innerHTML =
+                '<span class="text-sm font-bold text-white">IUT</span>';
+              parent.insertBefore(textLogo, e.currentTarget);
+            }
+          }}
+        />
         <div>
-          <span className="font-semibold text-gray-900">Orient Express</span>
+          <h4 className="text-brand-main text-lg font-bold">Orient Express</h4>
           <p className={cn("-mt-1 text-xs", subTitleColor)}>
-            Academic Orientation platform
-          </p>{" "}
+            Plateforme d'Orientation
+          </p>
         </div>
       </Link>
     );
@@ -148,12 +165,12 @@ NavbarLogo.displayName = "NavbarLogo";
 const NavItems: React.FC<NavItemsProps> = ({ items, className }) => {
   const [hovered, setHovered] = useState<number | null>(null);
   const handleMouseLeave = useCallback(() => setHovered(null), []);
-  const pathname = usePathname(); // Use next/navigation's usePathname
+  const pathname = usePathname();
 
   return (
     <motion.ul
       onMouseLeave={handleMouseLeave}
-      className={cn("hidden items-center space-x-6 md:flex", className)} // Adjusted spacing
+      className={cn("hidden items-center space-x-6 md:flex", className)}
     >
       {items.map((item, idx) => (
         <NavItemComponent
@@ -177,18 +194,22 @@ const NavItemComponent: React.FC<NavItemComponentProps> = React.memo(
       <li className="relative" onMouseEnter={onHover} onMouseLeave={onLeave}>
         <Link
           className={cn(
-            "group relative flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors select-none", // Added padding and rounded
+            "group relative flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors select-none",
             isActive
-              ? "text-primary bg-primary/10 font-semibold" // Active state
-              : "text-muted-foreground hover:bg-primary/5 hover:text-primary", // Inactive state
+              ? "text-primary bg-primary/10 font-semibold"
+              : "text-muted-foreground hover:bg-primary/5 hover:text-primary",
           )}
           href={item.href}
           aria-label={item.name}
         >
           <span>{item.name}</span>
-          {/* Active indicator dot/underline */}
-          {isActive && (
-            <span className="bg-primary absolute bottom-0 left-1/2 h-0.5 w-4 -translate-x-1/2 rounded-full" />
+          {/* Active/Hover indicator dot/underline */}
+          {(isActive || isHovered) && ( // CRITICAL FIX: Show on hover as well
+            <motion.span
+              layoutId="nav-dot" // For Framer Motion animation
+              transition={{ type: "spring", ...NAVBAR_ANIMATIONS.navDot }}
+              className="bg-primary absolute bottom-0 left-1/2 h-0.5 w-4 -translate-x-1/2 rounded-full"
+            />
           )}
         </Link>
       </li>
@@ -202,7 +223,6 @@ interface MobileNavToggleProps extends NavItemsProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onClose: () => void;
-  // isAuthenticated, onLogout, isAdminOrAdvisor, dashboardHref, dashboardButtonText are passed from Navbar
   isAuthenticated: boolean;
   onLogout: () => void;
   isAdminOrAdvisor: boolean;
@@ -219,6 +239,7 @@ const MobileNavToggle: React.FC<MobileNavToggleProps> = ({
   onLogout,
   isAdminOrAdvisor,
   dashboardHref,
+  dashboardButtonText,
 }) => {
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
@@ -250,15 +271,11 @@ const MobileNavToggle: React.FC<MobileNavToggleProps> = ({
       >
         <SheetHeader className="border-border items-start border-b pb-4">
           <DialogTitle className="sr-only">Navigation Menu</DialogTitle>
-          <NavbarLogo size={28} /> {/* Smaller logo for mobile header */}
+          <NavbarLogo size={28} />
         </SheetHeader>
 
         <ScrollArea className="flex-1 py-4">
-          {" "}
-          {/* Adjusted padding */}
           <nav className="flex flex-col gap-2">
-            {" "}
-            {/* Adjusted gap */}
             {items.map((item) => (
               <MobileNavItem
                 key={`mobile-nav-${item.href}`}
@@ -275,14 +292,11 @@ const MobileNavToggle: React.FC<MobileNavToggleProps> = ({
                   className="mt-2 w-full justify-start text-base"
                 >
                   <Settings className="mr-2 h-5 w-5" />
-                  {
-                    isAdminOrAdvisor
-                      ? isAdminOrAdvisor &&
-                        (userRole === "ADMIN"
-                          ? "Admin Dashboard"
-                          : "Advisor Dashboard")
-                      : "Dashboard" // Fallback if roles are not explicitly ADMIN/ADVISOR
-                  }
+                  {isAdminOrAdvisor
+                    ? userRole === "ADMIN"
+                      ? "Admin Dashboard"
+                      : "Advisor Dashboard"
+                    : "Dashboard"}
                 </Button>
               </Link>
             )}
@@ -302,14 +316,14 @@ const MobileNavToggle: React.FC<MobileNavToggleProps> = ({
 // Mobile Navigation Item
 const MobileNavItem: React.FC<MobileNavItemProps> = React.memo(
   ({ item, onItemClick }) => {
-    const pathname = usePathname(); // Use next/navigation's usePathname
+    const pathname = usePathname();
     const isActive = pathname === item.href;
 
     return (
       <Link
         href={item.href}
         className={cn(
-          "flex items-center rounded-md px-3 py-2 font-medium transition-colors", // Added padding and rounded
+          "flex items-center rounded-md px-3 py-2 font-medium transition-colors",
           isActive
             ? "bg-primary/10 text-primary font-semibold"
             : "text-foreground hover:bg-muted hover:text-primary",
@@ -343,18 +357,18 @@ const MobileNavFooter: React.FC<MobileNavFooterProps> = ({
           }}
         >
           <LogOut className="mr-2 h-4 w-4" />
-          {"Logout"} {/* Hardcoded string */}
+          {"Logout"}
         </Button>
       ) : (
         <>
-          <Button variant="outline" asChild className="w-full rounded-full">
+          <Button variant="outline" asChild className="w-full rounded-sm">
             <Link href="/sign-in" onClick={onClose}>
-              {"Login"} {/* Hardcoded string */}
+              {"Login"}
             </Link>
           </Button>
-          <Button asChild className="w-full rounded-full">
+          <Button asChild className="w-full rounded-sm">
             <Link href="/sign-up" onClick={onClose}>
-              {"Sign Up"} {/* Hardcoded string */}
+              {"Sign Up"}
             </Link>
           </Button>
         </>
@@ -381,8 +395,10 @@ export const Navbar: React.FC<NavbarProps> = ({ className }) => {
   const animationProps = useMemo(
     () => ({
       animate: {
-        backdropFilter: visible ? NAVBAR_ANIMATIONS.backdrop.blur : "none",
-        backgroundColor: visible ? "rgba(255,255,255,0.8)" : "transparent",
+        backdropFilter: visible
+          ? `${NAVBAR_ANIMATIONS.backdrop.blur} blur(10px)`
+          : "none",
+        backgroundColor: visible ? "rgba(255,255,255,0.4)" : "transparent",
         boxShadow: visible ? NAVBAR_ANIMATIONS.backdrop.shadow : "none",
       },
       transition: {
@@ -394,6 +410,7 @@ export const Navbar: React.FC<NavbarProps> = ({ className }) => {
   );
 
   const { user, logout, isAuthenticated, userRole } = useAuth();
+  const { theme, setTheme } = useTheme(); // CRITICAL: Access theme and setTheme
 
   const isAdminOrAdvisor =
     isAuthenticated && (userRole === "ADMIN" || userRole === "ADVISOR");
@@ -402,6 +419,10 @@ export const Navbar: React.FC<NavbarProps> = ({ className }) => {
   const dashboardButtonText =
     userRole === "ADMIN" ? "Admin Dashboard" : "Advisor Dashboard";
 
+  const toggleTheme = useCallback(() => {
+    setTheme(theme === "light" ? "dark" : "light");
+  }, [theme, setTheme]);
+
   return (
     <motion.header
       {...animationProps}
@@ -409,14 +430,36 @@ export const Navbar: React.FC<NavbarProps> = ({ className }) => {
       className={cn("fixed top-0 z-50 w-full", className)}
     >
       <NavBody className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Left Section: Logo and Desktop Navigation Links */}
-        <div className="flex items-center space-x-6">
+        {/* Left Section: Logo */}
+        <div className="flex-shrink-0">
           <NavbarLogo />
+        </div>
+
+        {/* Center Section: Desktop Navigation Links */}
+        <div className="flex flex-1 justify-center">
+          {" "}
+          {/* CRITICAL FIX: Centralize NavItems */}
           <NavItems items={defaultNavigation} />
         </div>
 
-        {/* Right Section: Auth/User Buttons & Mobile Toggle */}
-        <div className="flex items-center space-x-2 sm:space-x-4">
+        {/* Right Section: Auth/User Buttons, Dark Mode Toggle & Mobile Toggle */}
+        <div className="flex flex-shrink-0 items-center space-x-2 sm:space-x-4">
+          {/* Dark Mode Toggle Button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full"
+            onClick={toggleTheme}
+            aria-label="Toggle dark mode"
+          >
+            {theme === "dark" ? (
+              <Sun className="h-5 w-5 scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
+            ) : (
+              <Moon className="h-5 w-5 scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
+            )}
+            <span className="sr-only">Toggle theme</span>
+          </Button>
+
           {isAuthenticated ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -498,7 +541,7 @@ export const Navbar: React.FC<NavbarProps> = ({ className }) => {
             items={defaultNavigation}
             isOpen={isMobileMenuOpen}
             onOpenChange={setIsMobileMenuOpen}
-            onClose={() => setIsMobileMenuOpen(false)} // Pass a direct close function
+            onClose={() => setIsMobileMenuOpen(false)}
             isAuthenticated={isAuthenticated}
             onLogout={logout}
             isAdminOrAdvisor={isAdminOrAdvisor}
