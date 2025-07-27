@@ -1,7 +1,9 @@
+import { withAuth } from "next-auth/middleware"
+import { NextResponse } from "next/server"
+export { auth as middleware } from "@/auth"
 
 import { auth } from "./auth";
 
-export const middleware = auth;
 
 // import { withAuth } from "next-auth/middleware"
 // import { NextResponse } from "next/server"
