@@ -38,11 +38,3 @@ export async function sendVerificationEmail(to: string, token: string) {
     throw new Error('Failed to send verification email.');
   }
 }
-
-// You'll need these environment variables for Nodemailer
-// EMAIL_SERVER_HOST=smtp.example.com
-// EMAIL_SERVER_PORT=587
-// EMAIL_SERVER_SECURE=false
-// EMAIL_SERVER_USER=your_email@example.com
-// EMAIL_SERVER_PASSWORD=your_email_password
-// EMAIL_FROM="Your App <noreply@yourdomain.com>"

@@ -1,59 +1,55 @@
-// src/app/api/auth/register/route.ts (Example custom registration route)
-import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma'; // Adjust path to your Prisma client
-import bcrypt from 'bcryptjs';
-import { sendVerificationEmail } from '@/lib/email'; // Your email utility
-import crypto from 'crypto'; // For generating secure tokens
+// src/app/api/auth/register/route.ts
+import { db } from "@/server/db";
+import { hash } from "bcryptjs";
+import { NextResponse } from "next/server";
 
-export async function POST(request: Request) {
+export async function POST(req: Request) {
+  const body = await req.json();
+  const { email, password, firstName, lastName, schoolId } = body;
+
   try {
-    const { email, password, firstName, lastName, schoolId } = await request.json();
-
-    if (!email || !password || !firstName || !lastName || !schoolId) {
-      return NextResponse.json({ message: 'Missing required fields.' }, { status: 400 });
+    const existing = await db.user.findUnique({ where: { email } });
+    if (existing) {
+      return NextResponse.json(
+        { error: "Email already exists" },
+        { status: 400 }
+      );
     }
 
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser) {
-      return NextResponse.json({ message: 'User with this email already exists.' }, { status: 409 });
+    const schoolCheck = await db.validSchoolId.findUnique({
+      where: { schoolId },
+    });
+
+    if (!schoolCheck || schoolCheck.isUsed) {
+      return NextResponse.json(
+        { error: "Invalid or used School ID" },
+        { status: 400 }
+      );
     }
 
-    // Hash the password
-    const passwordHash = await bcrypt.hash(password, 10); // 10 is a good salt rounds value
+    const hashedPassword = await hash(password, 12);
 
-    // Create the user in the database
-    const newUser = await prisma.user.create({
+    await db.user.create({
       data: {
         email,
-        passwordHash,
         firstName,
         lastName,
         schoolId,
-        role: "STUDENT", // Default role
-        // emailVerified will be null initially
+        passwordHash: hashedPassword,
+        validSchoolId: {
+          connect: { schoolId },
+        },
       },
     });
 
-    // Generate a verification token
-    const verificationToken = crypto.randomBytes(32).toString('hex');
-    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // Token valid for 24 hours
-
-    await prisma.verificationToken.create({
-      data: {
-        identifier: email,
-        token: verificationToken,
-        expires: expires,
-      },
+    await db.validSchoolId.update({
+      where: { schoolId },
+      data: { isUsed: true },
     });
 
-    // Send verification email
-    await sendVerificationEmail(email, verificationToken);
-
-    return NextResponse.json({ message: 'Registration successful! Please check your email to verify your account.' }, { status: 201 });
-
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Registration error:', error);
-    return NextResponse.json({ message: 'An error occurred during registration.' }, { status: 500 });
+    console.error("Registration Error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

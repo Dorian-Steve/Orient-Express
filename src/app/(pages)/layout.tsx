@@ -2,6 +2,7 @@
 
 import { Navbar } from "@/components/shared/Nav/Navbar";
 import { useAuth } from "@/components/providers/auth-provider";
+import { Loader } from "@/components/shared/loader";
 
 export default function DashboardLayout({
   children,
@@ -11,11 +12,7 @@ export default function DashboardLayout({
   const { status } = useAuth();
 
   if (status === "loading") {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        Loading dashboard...
-      </div>
-    );
+    return <Loader size="md" className="absolute left-3" />;
   }
 
   return (

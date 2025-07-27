@@ -4,8 +4,7 @@ import { type Metadata } from "next";
 import { Geist, Poppins, Inter } from "next/font/google";
 import { TRPCReactProvider } from "@/trpc/react";
 import { ThemeProvider } from "@/components/shared/theme-provider";
-import { Toaster } from "@/components/ui/sonner";
-import { AuthProvider } from "@/components/providers/auth-provider";
+import { Providers } from "@/lib/provider";
 
 export const metadata: Metadata = {
   title: "Orient-Express",
@@ -26,19 +25,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${geist.variable}`} suppressHydrationWarning>
       <body>
-        <AuthProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <TRPCReactProvider>
-              {children}
-              {/* <Footer /> */}
-            </TRPCReactProvider>
-          </ThemeProvider>
-        </AuthProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

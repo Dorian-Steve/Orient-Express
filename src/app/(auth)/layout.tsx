@@ -2,10 +2,8 @@ import "@/styles/globals.css";
 
 import { type Metadata } from "next";
 import { Geist, Poppins, Inter } from "next/font/google";
-import { ClerkProvider } from "@clerk/nextjs";
 import { TRPCReactProvider } from "@/trpc/react";
 import { ThemeProvider } from "@/components/shared/theme-provider";
-import NavbarWrapper from "@/components/shared/Nav/NavbarWrapper";
 
 export const metadata: Metadata = {
   title: "Orient-Express",

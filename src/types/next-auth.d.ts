@@ -1,45 +1,42 @@
-// src/types/next-auth.d.ts
-// This file augments the NextAuth.js types to include custom fields.
-import NextAuth, { DefaultSession, DefaultUser } from "next-auth";
+// next-auth.d.ts
+import { DefaultSession, DefaultUser } from "next-auth";
 import { JWT } from "next-auth/jwt";
-import { UserRole } from "@prisma/client"; // Import UserRole from your Prisma client
 
-// Extend the default NextAuth.js User type
 declare module "next-auth" {
-  interface User extends DefaultUser {
-    // Add your custom fields here that are returned by the `authorize` callback
-    // and stored in the database by the adapter.
-    firstName?: string | null;
-    lastName?: string | null;
-    imageUrl?: string | null;
-    schoolId?: string | null;
-    role?: UserRole; // Use your Prisma UserRole enum type
-  }
-
-  // Extend the default session.user type
-  interface Session extends DefaultSession {
+  interface Session {
     user: {
-      id: string; // Ensure id is always present
-      email?: string | null; // Ensure email is also present
+      id: string;
+      role: "STUDENT" | "ADVISOR" | "ADMIN"; // Assuming UserRole is correctly mapped
+      schoolId: string;
       firstName?: string | null;
       lastName?: string | null;
       imageUrl?: string | null;
-      schoolId?: string | null;
-      role?: UserRole; // Use your Prisma UserRole enum type
-    } & DefaultSession["user"]; // Keep existing properties
+      emailVerified?: Date | null; // Ensure this matches your Prisma User model
+    } & DefaultSession["user"];
+  }
+
+  interface User extends DefaultUser {
+    id: string; // From Prisma User model
+    role: "STUDENT" | "ADVISOR" | "ADMIN"; // From Prisma User model
+    schoolId: string; // From Prisma User model
+    passwordHash?: string | null; // From Prisma User model
+    emailVerified?: Date | null; // From Prisma User model
+    name?: string | null; // From Prisma User model (added for OAuth compatibility)
+    firstName?: string | null; // From Prisma User model
+    lastName?: string | null; // From Prisma User model
+    imageUrl?: string | null; // From Prisma User model
   }
 }
 
-// Extend the default JWT type
 declare module "next-auth/jwt" {
   interface JWT {
-    // Add your custom fields here that are stored in the JWT.
-    id: string; // Ensure id is always present
-    email?: string | null; // Ensure email is also present
+    id: string;
+    role: "STUDENT" | "ADVISOR" | "ADMIN";
+    schoolId: string;
     firstName?: string | null;
     lastName?: string | null;
     imageUrl?: string | null;
-    schoolId?: string | null;
-    role?: UserRole; // Use your Prisma UserRole enum type
+    emailVerified?: Date | null; // Ensure this matches your Prisma User model
+    // Default JWT properties like 'name', 'email', 'picture', 'sub' are already handled by DefaultJWT
   }
 }

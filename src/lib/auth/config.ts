@@ -1,77 +1,34 @@
-// import { DrizzleAdapter } from "@auth/drizzle-adapter";
-// import { randomUUID } from "crypto";
-// import { eq } from "drizzle-orm";
-// import { AuthError, CredentialsSignin, type DefaultSession, type NextAuthConfig } from "next-auth";
+// // src/lib/auth.ts
+// import { randomUUID } from "crypto"; // Still useful for generating tokens if needed, but less so with PrismaAdapter
+// import { AuthError, type DefaultSession, type NextAuthConfig } from "next-auth";
 // import Credentials from "next-auth/providers/credentials";
 // import GitHub from "next-auth/providers/github";
 // import Google from "next-auth/providers/google";
-
-// import { db } from "@/lib/db/connection";
-// import { account, session as sessionSchema, user, verificationToken } from "@/lib/db/schemas";
-// import { verifyPassword } from "@/lib/utils/password";
-// import { signInSchema } from "@/lib/validations/auth-validators";
-// import { type UserId, type UserRole } from "@/types/user.types";
+// import { PrismaAdapter } from "@auth/prisma-adapter"; // Import PrismaAdapter
+// import { db } from "@/server/db"; // Import your Prisma client instance (from prisma-db-singleton Canvas)
+// import bcrypt from "bcryptjs"; // For password verification
+// import { signInSchema } from "@/lib/auth/auth-validators"; // Assuming this path is correct
+// import { type UserRole, type UserId } from "@prisma/client"; // Import UserRole from Prisma client
 
 // /**
 //  * Extended module augmentation for comprehensive session management
+//  * This part is typically in src/types/next-auth.d.ts, but included here for context.
+//  * It will be provided in a separate immersive below.
 //  */
-// declare module "next-auth" {
-//   interface Session extends DefaultSession {
-//     user: {
-//       id: string;
-//       role: UserRole;
-//       department?: string;
-//       phoneNumber?: string;
-//       bio?: string;
-//       emailVerified: Date | null;
-//     } & DefaultSession["user"];
-//     expires: string;
-//     sessionToken?: string;
-//   }
-
-//   interface User {
-//     role: UserRole;
-//     department: string;
-//     phoneNumber?: string;
-//     bio?: string;
-//     emailVerified: Date | null;
-//   }
-// }
+// // declare module "next-auth" { ... }
 
 // /**
-//  * Create adapter with custom session creation for credentials
-//  */
-// const adapter = DrizzleAdapter(db, {
-//   usersTable: user,
-//   accountsTable: account,
-//   sessionsTable: sessionSchema,
-//   verificationTokensTable: verificationToken,
-// });
-
-// // Override the adapter to handle credentials sessions
-// const enhancedAdapter = {
-//   ...adapter,
-//   async createSession(session: { sessionToken: string; userId: string; expires: Date }) {
-//     console.log("Creating session:", session);
-//     const result = await adapter.createSession!(session);
-//     return result;
-//   },
-// };
-
-// class NotVerifiedError extends CredentialsSignin {
-//   code = "EMAIL_NOT_VERIFIED";
-// }
-
-// /**
-//  * Enhanced NextAuth configuration with manual session creation for credentials
+//  * Enhanced NextAuth configuration with Prisma Adapter
 //  */
 // export const authConfig = {
+//   // Use PrismaAdapter with your Prisma client instance
+//   adapter: PrismaAdapter(db), // 'db' is your PrismaClient instance from "@/server/db"
+
 //   providers: [
 //     Google({
 //       allowDangerousEmailAccountLinking: true,
-//     }),
-//     GitHub({
-//       allowDangerousEmailAccountLinking: true,
+//       clientId: process.env.GOOGLE_CLIENT_ID!,
+//       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
 //     }),
 //     Credentials({
 //       credentials: {
@@ -82,137 +39,166 @@
 //         try {
 //           const { email, password } = await signInSchema.parseAsync(credentials);
 
-//           const userData = await db.query.user.findFirst({
-//             where: (user, { eq }) => eq(user.email, email),
-//             with: {
-//               accounts: true,
-//             },
+//           // Use Prisma to find the user
+//           const userData = await db.user.findUnique({
+//             where: { email: email },
+//             // Include related models if necessary, like accounts for OAuth users
+//             // For credentials, we mainly need passwordHash from the User model itself
 //           });
 
 //           if (!userData) {
+//             return null; // User not found
+//           }
+
+//           // Verify password for credentials login
+//           // Assuming passwordHash is directly on the User model as per prisma-schema-final
+//           if (!userData.passwordHash) {
+//             // User exists but doesn't have a password hash (e.g., signed up via OAuth)
 //             return null;
 //           }
 
-//           if (!userData.accounts[0]?.password) {
-//             return null;
-//           }
-
-//           const isPasswordValid = await verifyPassword({
-//             password: password,
-//             hash: userData.accounts[0].password,
-//           });
+//           const isPasswordValid = await bcrypt.compare(
+//             password,
+//             userData.passwordHash,
+//           );
 
 //           if (!isPasswordValid) {
-//             return null;
+//             return null; // Invalid password
 //           }
 
+//           // Return the user object. NextAuth.js expects at least 'id'.
+//           // Include other fields that will be propagated to the JWT and session.
 //           return {
 //             id: userData.id,
 //             email: userData.email,
-//             name: userData.name,
-//             role: userData.role as UserRole,
-//             image: userData.image,
-//             department: userData.department,
-//             phoneNumber: userData.phoneNumber ?? undefined,
-//             emailVerified: userData.emailVerified,
-//             bio: userData.bio ?? undefined,
+//             name: userData.firstName + " " + userData.lastName, // Combine for 'name' if needed
+//             image: userData.imageUrl,
+//             role: userData.role, // From Prisma User model
+//             // Add other fields from User model that you want in the session
+//             // Note: department, phoneNumber, bio, emailVerified are NOT directly on User in prisma-schema-final
+//             // They are on StudentProfile/AdvisorProfile.
+//             // If you need them in session.user, you'll need to fetch them here
+//             // and include them in the returned object, then augment types.
+//             // For now, I'm only including fields directly on the User model.
+//             // If you need profile-specific data, you'd fetch it here:
+//             // studentProfile: await db.studentProfile.findUnique({ where: { userId: userData.id } }),
+//             // advisorProfile: await db.advisorProfile.findUnique({ where: { userId: userData.id } }),
 //           };
 //         } catch (error) {
 //           console.error("Authorization error:", error);
+//           // Re-throw AuthError if it's a specific authentication error
 //           if (error instanceof AuthError) {
 //             throw error;
 //           }
-//           return null;
+//           return null; // For other unexpected errors
 //         }
 //       },
 //     }),
 //   ],
-//   adapter: enhancedAdapter,
+//   // adapter is set above: adapter: PrismaAdapter(db),
 //   session: {
-//     strategy: "jwt" as const, // Use JWT for credentials, database for OAuth
+//     strategy: "jwt", // Use JWT for session management
 //     maxAge: 60 * 60 * 24 * 30, // 30 days
 //   },
 //   jwt: {
 //     maxAge: 60 * 60 * 24 * 30, // 30 days
 //   },
 //   callbacks: {
-//     async signIn({ user, account, profile, email, credentials }) {
-//       // For credentials provider, manually create a database session
-//       if (account?.provider === "credentials" && user.id) {
-//         try {
-//           console.log("Creating manual session for credentials user:", user.id);
+//     async signIn({ user, account, profile }) {
+//       // PrismaAdapter handles session creation for all providers automatically.
+//       // No manual session creation for credentials needed here.
 
-//           // Generate session token
-//           const sessionToken = randomUUID();
-//           const expires = new Date(Date.now() + 60 * 60 * 24 * 30 * 1000); // 30 days
+//       // Additional validation: check emailVerified if it's a field on your User model
+//       // Note: emailVerified is not directly on User in prisma-schema-final.
+//       // If you need this, you'd add it to your User model in Prisma schema.
+//       // For now, commenting out as it's not in your current User model.
+//       // if (account?.provider === "credentials" && !user.emailVerified) {
+//       //   return false; // Prevent sign-in if email not verified
+//       // }
 
-//           // Create session in database manually
-//           await enhancedAdapter.createSession({
-//             sessionToken,
-//             userId: user.id,
-//             expires,
-//           });
-
-//           console.log("Manual session created successfully");
-//         } catch (error) {
-//           console.error("Error creating manual session:", error);
-//           return false;
-//         }
-//       }
-
-//       // Additional validation
-//       if (account?.provider === "credentials" && !user.emailVerified) {
-//         return false;
-//       }
-
-//       return true;
+//       return true; // Allow sign-in
 //     },
-//     async jwt({ token, user, account, profile, session, trigger }) {
-//       // Initial sign in
+//     async jwt({ token, user, trigger }) {
+//       // 'user' is only present on the first sign-in (after authorize) or when updating session
 //       if (user) {
+//         // Map common fields from User to JWT token
 //         token.id = user.id;
+//         token.email = user.email;
+//         token.name = user.name; // This would be combined firstName/lastName
+//         token.picture = user.image; // Maps to imageUrl
+
+//         // Add custom fields from your User model to the token
 //         token.role = user.role;
-//         token.department = user.department;
-//         token.phoneNumber = user.phoneNumber;
-//         token.bio = user.bio;
-//         token.emailVerified = user.emailVerified;
+//         // If you need firstName, lastName separately in token:
+//         token.firstName = (user as any).firstName;
+//         token.lastName = (user as any).lastName;
+//         token.schoolId = (user as any).schoolId;
 //       }
 
-//       // Refresh user data on update or periodically
+//       // Refresh user data on update or periodically (e.g., every hour)
+//       // This ensures the token has the latest user data from the DB
 //       if (
 //         trigger === "update" ||
 //         (token.id && Date.now() - (token.iat ?? 0) * 1000 > 60 * 60 * 1000)
 //       ) {
 //         try {
-//           const freshUser = await db.query.user.findFirst({
-//             where: (user, { eq }) => eq(user.id, token.id as UserId),
+//           const freshUser = await db.user.findUnique({
+//             where: { id: token.id as string },
+//             // Include related profiles if you need their data in the session
+//             // For example, to get 'speciality' or 'academicBackground' for students:
+//             include: {
+//               studentProfile: true,
+//               advisorProfile: true,
+//               adminProfile: true,
+//             },
 //           });
 
 //           if (freshUser) {
-//             token.role = freshUser.role as UserRole;
-//             token.department = freshUser.department;
-//             token.phoneNumber = freshUser.phoneNumber;
-//             token.bio = freshUser.bio;
-//             token.emailVerified = freshUser.emailVerified;
-//             token.name = freshUser.name;
+//             // Update token with fresh data
 //             token.email = freshUser.email;
-//             token.picture = freshUser.image;
+//             token.name = freshUser.firstName + " " + freshUser.lastName;
+//             token.picture = freshUser.imageUrl;
+//             token.role = freshUser.role;
+//             token.firstName = freshUser.firstName;
+//             token.lastName = freshUser.lastName;
+//             token.schoolId = freshUser.schoolId;
+
+//             // Add profile-specific data to token based on role
+//             if (freshUser.role === "STUDENT" && freshUser.studentProfile) {
+//               token.speciality = freshUser.studentProfile.speciality;
+//               token.academicBackground = freshUser.studentProfile.academicBackground;
+//               // Add other studentProfile fields as needed
+//             } else if (freshUser.role === "ADVISOR" && freshUser.advisorProfile) {
+//               token.bio = freshUser.advisorProfile.bio;
+//               // Add other advisorProfile fields as needed
+//             }
+//             // Add adminProfile fields if necessary
 //           }
 //         } catch (error) {
-//           console.error("Error refreshing user data:", error);
+//           console.error("Error refreshing user data in JWT:", error);
 //         }
 //       }
 
 //       return token;
 //     },
 //     async session({ session, token, user }) {
+//       // Propagate custom fields from JWT token to session.user
 //       if (session?.user && token) {
-//         session.user.id = token.id as UserId;
+//         session.user.id = token.id as string;
+//         session.user.email = token.email;
+//         session.user.name = token.name;
+//         session.user.image = token.picture;
+
+//         // Propagate custom fields
 //         session.user.role = token.role as UserRole;
-//         session.user.department = token.department as string;
-//         session.user.phoneNumber = token.phoneNumber as string | undefined;
-//         session.user.bio = token.bio as string | undefined;
-//         session.user.emailVerified = token.emailVerified as Date | null;
+//         session.user.firstName = token.firstName as string | null | undefined;
+//         session.user.lastName = token.lastName as string | null | undefined;
+//         session.user.schoolId = token.schoolId as string | null | undefined;
+
+//         // Propagate profile-specific fields if they exist on the token
+//         session.user.speciality = (token as any).speciality;
+//         session.user.academicBackground = (token as any).academicBackground;
+//         session.user.bio = (token as any).bio;
 //       }
 //       return session;
 //     },
@@ -224,56 +210,35 @@
 //     },
 //   },
 //   events: {
-//     async signIn({ user, account, profile, isNewUser }) {
+//     async signIn({ user, account, isNewUser }) {
 //       console.log("User signed in:", {
 //         userId: user.id,
 //         provider: account?.provider,
 //         isNewUser,
 //       });
+//       // PrismaAdapter handles  database operations for sign-in,
+//       // so no manual session/user creation needed here.
 //     },
 //     async signOut(params) {
-//       // Handle union type properly - params can be { session } or { token }
-//       const session = "session" in params ? params.session : null;
-//       const token = "token" in params ? params.token : null;
-
-//       // For credentials users, manually clean up database session
-//       if (token?.id) {
-//         try {
-//           // Find and delete sessions for this user
-//           const userSessions = await db.query.session.findMany({
-//             where: (sessionTable, { eq, and, gt }) =>
-//               and(
-//                 eq(sessionTable.userId, token.id as UserId),
-//                 gt(sessionTable.expires, new Date()),
-//               ),
-//           });
-
-//           if (userSessions.length > 0) {
-//             await db.delete(sessionSchema).where(eq(sessionSchema.userId, token.id as UserId));
-//             console.log("Cleaned up manual sessions for user:", token.id);
-//           }
-//         } catch (error) {
-//           console.error("Error cleaning up sessions:", error);
-//         }
-//       }
-
-//       console.log("User signed out:", {
-//         userId: (session?.userId as UserId) ?? token?.id,
-//       });
+//       // PrismaAdapter handles session deletion automatically for database-backed sessions.
+//       // No manual session cleanup needed here for credentials or OAuth.
+//       const userId = ("session" in params && params.session?.user?.id) || ("token" in params && params.token?.id);
+//       console.log("User signed out:", { userId });
 //     },
 //     async createUser({ user }) {
 //       console.log("New user created:", { userId: user.id });
+//       // PrismaAdapter handles user creation.
 //     },
 //   },
 //   pages: {
-//     signIn: "/auth/sign-in",
-//     signOut: "/auth/sign-out",
+//     signIn: "/sign-in", // Corrected path to match Next.js App Router convention
+//     // signOut: "/auth/sign-out", // NextAuth.js doesn't have a built-in signOut page
 //     error: "/auth/error",
-//     verifyRequest: "/auth/verify-request",
+//     // verifyRequest: "/auth/verify-request", // Only if using email provider
 //   },
 //   cookies: {
 //     sessionToken: {
-//       name: "talent-bridge-session-token",
+//       name: "orient-express-session-token", // Renamed cookie for your project
 //       options: {
 //         httpOnly: true,
 //         sameSite: "lax",
@@ -282,7 +247,7 @@
 //       },
 //     },
 //     callbackUrl: {
-//       name: "talent-bridge-callback-url",
+//       name: "orient-express-callback-url", // Renamed cookie
 //       options: {
 //         httpOnly: true,
 //         sameSite: "lax",
@@ -291,7 +256,7 @@
 //       },
 //     },
 //     csrfToken: {
-//       name: "talent-bridge-csrf-token",
+//       name: "orient-express-csrf-token", // Renamed cookie
 //       options: {
 //         httpOnly: true,
 //         sameSite: "lax",

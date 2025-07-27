@@ -1,5 +1,5 @@
 import type { TRPCError } from "@trpc/server";
-import type { AuthError }  from "next-auth";
+import type AuthError  from "next-auth";
 import { type StateCreator } from "zustand";
 
 import type { AuthStore, User } from "@/types/user.types";
@@ -20,7 +20,7 @@ export const createAuthActions = (
     set({ isInitialized });
   },
 
-  setError: (error: TRPCError | AuthError | null) => {
+  setError: (error: TRPCError | null) => {
     set({ error });
   },
 
