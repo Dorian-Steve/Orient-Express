@@ -2,379 +2,315 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { signIn } from "next-auth/react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { toast } from "sonner";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
-  User,
-  Lock,
-  Mail,
-  GraduationCap,
-  Eye,
-  EyeOff,
-  Phone,
-  Calendar,
-  MapPin,
-} from "lucide-react";
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Loader2, UserPlus } from "lucide-react";
+import { FaGoogle } from "react-icons/fa";
 
-export default function StudentSignUp() {
-  const [formData, setFormData] = useState({
-    // Required fields
-    email: "",
-    password: "",
-    confirmPassword: "",
-    firstName: "",
-    lastName: "",
-
-    // Optional fields
-    phoneNumber: "",
-    dateOfBirth: "",
-    gender: "",
-
-    // Terms
-    agreeToTerms: false,
+const signUpSchema = z
+  .object({
+    email: z.string().email("Please enter a valid email address"),
+    firstName: z.string().min(2, "First name must be at least 2 characters"),
+    lastName: z.string().min(2, "Last name must be at least 2 characters"),
+    schoolId: z.string().min(3, "School ID must be at least 3 characters"),
+    password: z.string().min(6, "Password must be at least 6 characters"),
+    confirmPassword: z.string().min(6, "Please confirm your password"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
   });
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+type SignUpFormValues = z.infer<typeof signUpSchema>;
+
+export default function SignUpPage() {
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  const handleInputChange = (field: string, value: string | boolean) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-    setError("");
-  };
+  const form = useForm<SignUpFormValues>({
+    resolver: zodResolver(signUpSchema),
+    defaultValues: {
+      email: "",
+      firstName: "",
+      lastName: "",
+      schoolId: "",
+      password: "",
+      confirmPassword: "",
+    },
+  });
 
-  const validateForm = () => {
-    if (!formData.email || !formData.email.includes("@")) {
-      setError("Please enter a valid email address");
-      return false;
-    }
-    if (!formData.firstName.trim()) {
-      setError("First name is required");
-      return false;
-    }
-    if (!formData.lastName.trim()) {
-      setError("Last name is required");
-      return false;
-    }
-    if (!formData.password || formData.password.length < 8) {
-      setError("Password must be at least 8 characters long");
-      return false;
-    }
-    if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
-      return false;
-    }
-    if (!formData.agreeToTerms) {
-      setError("You must agree to the terms and conditions");
-      return false;
-    }
-    return true;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validateForm()) return;
-
-    setLoading(true);
-    setError("");
-
+  const onSubmit = async (values: SignUpFormValues) => {
+    setIsLoading(true);
     try {
+      // First, register the user
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          phoneNumber: formData.phoneNumber || null,
-          dateOfBirth: formData.dateOfBirth || null,
-          gender: formData.gender || null,
-          role: "STUDENT",
+          email: values.email,
+          firstName: values.firstName,
+          lastName: values.lastName,
+          schoolId: values.schoolId,
+          password: values.password,
         }),
       });
 
-      if (response.ok) {
-        router.push(
-          "/sign-in?message=Registration successful! Please sign in.",
-        );
-      } else {
-        const errorData = await response.json();
-        setError(errorData.message || "Registration failed. Please try again.");
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Registration failed");
       }
-    } catch (error) {
-      setError("An error occurred. Please try again.");
+
+      toast.success("Account created successfully!", {
+        description: "You can now sign in with your credentials.",
+      });
+
+      // Automatically sign in the user after successful registration
+      const signInResult = await signIn("credentials", {
+        redirect: false,
+        email: values.email,
+        password: values.password,
+      });
+
+      if (signInResult?.ok) {
+        router.push("/");
+        router.refresh();
+      } else {
+        router.push("/login");
+      }
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      toast.error("Registration failed", {
+        description: error.message || "Please try again later.",
+      });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignUp = async () => {
+    setIsGoogleLoading(true);
+    try {
+      await signIn("google", {
+        callbackUrl: "/",
+      });
+    } catch (error) {
+      console.error("Google sign-up error:", error);
+      toast.error("Google Sign Up Failed", {
+        description: "Please try again later.",
+      });
+      setIsGoogleLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="w-full max-w-md">
-        {/* Header */}
-        <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-lg">
-            <GraduationCap className="h-8 w-8 text-blue-600" />
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8 dark:bg-gray-900">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-center text-2xl font-bold">
+            Create Account
+          </CardTitle>
+          <CardDescription className="text-center">
+            Join the IUT Douala community
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="firstName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>First Name</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="John"
+                          disabled={isLoading || isGoogleLoading}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="lastName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Last Name</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Doe"
+                          disabled={isLoading || isGoogleLoading}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="email"
+                        placeholder="your.email@iut-douala.cm"
+                        disabled={isLoading || isGoogleLoading}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="schoolId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>School ID</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g., STU12345"
+                        disabled={isLoading || isGoogleLoading}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="password"
+                        placeholder="Create a password"
+                        disabled={isLoading || isGoogleLoading}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirm Password</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="password"
+                        placeholder="Confirm your password"
+                        disabled={isLoading || isGoogleLoading}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isLoading || isGoogleLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating account...
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Create Account
+                  </>
+                )}
+              </Button>
+            </form>
+          </Form>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background text-muted-foreground px-2">
+                Or continue with
+              </span>
+            </div>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">Join as Student</h1>
-          <p className="mt-2 text-gray-600">
-            Start your educational guidance journey
-          </p>
-        </div>
 
-        {/* Sign-up Form */}
-        <div className="rounded-xl bg-white p-8 shadow-xl">
-          {error && (
-            <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Email */}
-            <div className="relative">
-              <Mail className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-gray-400" />
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => handleInputChange("email", e.target.value)}
-                className="w-full rounded-lg border border-gray-300 py-3 pr-4 pl-10 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
-                placeholder="Email address"
-                required
-              />
-            </div>
-
-            {/* First & Last Name */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="relative">
-                <User className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-gray-400" />
-                <input
-                  type="text"
-                  value={formData.firstName}
-                  onChange={(e) =>
-                    handleInputChange("firstName", e.target.value)
-                  }
-                  className="w-full rounded-lg border border-gray-300 py-3 pr-4 pl-10 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
-                  placeholder="First name"
-                  required
-                />
-              </div>
-              <div className="relative">
-                <User className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-gray-400" />
-                <input
-                  type="text"
-                  value={formData.lastName}
-                  onChange={(e) =>
-                    handleInputChange("lastName", e.target.value)
-                  }
-                  className="w-full rounded-lg border border-gray-300 py-3 pr-4 pl-10 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
-                  placeholder="Last name"
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Password */}
-            <div className="relative">
-              <Lock className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-gray-400" />
-              <input
-                type={showPassword ? "text" : "password"}
-                value={formData.password}
-                onChange={(e) => handleInputChange("password", e.target.value)}
-                className="w-full rounded-lg border border-gray-300 py-3 pr-12 pl-10 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
-                placeholder="Password (min. 8 characters)"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute top-1/2 right-3 -translate-y-1/2 transform text-gray-400 hover:text-gray-600"
-              >
-                {showPassword ? (
-                  <EyeOff className="h-5 w-5" />
-                ) : (
-                  <Eye className="h-5 w-5" />
-                )}
-              </button>
-            </div>
-
-            {/* Confirm Password */}
-            <div className="relative">
-              <Lock className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-gray-400" />
-              <input
-                type={showConfirmPassword ? "text" : "password"}
-                value={formData.confirmPassword}
-                onChange={(e) =>
-                  handleInputChange("confirmPassword", e.target.value)
-                }
-                className="w-full rounded-lg border border-gray-300 py-3 pr-12 pl-10 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
-                placeholder="Confirm password"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute top-1/2 right-3 -translate-y-1/2 transform text-gray-400 hover:text-gray-600"
-              >
-                {showConfirmPassword ? (
-                  <EyeOff className="h-5 w-5" />
-                ) : (
-                  <Eye className="h-5 w-5" />
-                )}
-              </button>
-            </div>
-
-            {/* Password Requirements */}
-            <div className="rounded-lg bg-gray-50 p-3 text-xs text-gray-500">
-              <p className="mb-1 font-medium">Password must contain:</p>
-              <div className="grid grid-cols-2 gap-2">
-                <div
-                  className={
-                    formData.password.length >= 8
-                      ? "text-green-600"
-                      : "text-gray-500"
-                  }
-                >
-                  • At least 8 characters
-                </div>
-                <div
-                  className={
-                    /[A-Z]/.test(formData.password)
-                      ? "text-green-600"
-                      : "text-gray-500"
-                  }
-                >
-                  • One uppercase letter
-                </div>
-                <div
-                  className={
-                    /[a-z]/.test(formData.password)
-                      ? "text-green-600"
-                      : "text-gray-500"
-                  }
-                >
-                  • One lowercase letter
-                </div>
-                <div
-                  className={
-                    /[0-9]/.test(formData.password)
-                      ? "text-green-600"
-                      : "text-gray-500"
-                  }
-                >
-                  • One number
-                </div>
-              </div>
-            </div>
-
-            {/* Optional Information */}
-            <div className="border-t pt-4">
-              <h3 className="mb-3 text-sm font-medium text-gray-700">
-                Optional Information
-              </h3>
-
-              <div className="space-y-3">
-                {/* Phone Number */}
-                <div className="relative">
-                  <Phone className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-gray-400" />
-                  <input
-                    type="tel"
-                    value={formData.phoneNumber}
-                    onChange={(e) =>
-                      handleInputChange("phoneNumber", e.target.value)
-                    }
-                    className="w-full rounded-lg border border-gray-300 py-3 pr-4 pl-10 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
-                    placeholder="Phone number"
-                  />
-                </div>
-
-                {/* Date of Birth & Gender */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="relative">
-                    <Calendar className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-gray-400" />
-                    <input
-                      type="date"
-                      value={formData.dateOfBirth}
-                      onChange={(e) =>
-                        handleInputChange("dateOfBirth", e.target.value)
-                      }
-                      className="w-full rounded-lg border border-gray-300 py-3 pr-4 pl-10 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <select
-                    value={formData.gender}
-                    onChange={(e) =>
-                      handleInputChange("gender", e.target.value)
-                    }
-                    className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select gender</option>
-                    <option value="MALE">Male</option>
-                    <option value="FEMALE">Female</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Terms Agreement */}
-            <div className="flex items-start space-x-3 pt-4">
-              <input
-                type="checkbox"
-                id="agreeToTerms"
-                checked={formData.agreeToTerms}
-                onChange={(e) =>
-                  handleInputChange("agreeToTerms", e.target.checked)
-                }
-                className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <label htmlFor="agreeToTerms" className="text-sm text-gray-700">
-                I agree to the{" "}
-                <button
-                  type="button"
-                  className="text-blue-600 underline hover:text-blue-800"
-                >
-                  Terms of Service
-                </button>{" "}
-                and{" "}
-                <button
-                  type="button"
-                  className="text-blue-600 underline hover:text-blue-800"
-                >
-                  Privacy Policy
-                </button>
-              </label>
-            </div>
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="mt-6 w-full rounded-lg bg-blue-600 py-3 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {loading ? "Creating Account..." : "Create Student Account"}
-            </button>
-          </form>
-        </div>
-
-        {/* Footer */}
-        <div className="mt-6 text-center text-sm text-gray-600">
-          Already have an account?{" "}
-          <button
-            type="button"
-            onClick={() => router.push("/sign-in")}
-            className="font-medium text-blue-600 hover:text-blue-800"
+          <Button
+            variant="outline"
+            className="w-full bg-transparent"
+            onClick={handleGoogleSignUp}
+            disabled={isLoading || isGoogleLoading}
           >
-            Sign in here
-          </button>
-        </div>
-      </div>
+            {isGoogleLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Connecting...
+              </>
+            ) : (
+              <>
+                <FaGoogle className="mr-2 h-4 w-4" />
+                Sign up with Google
+              </>
+            )}
+          </Button>
+
+          <div className="text-center text-sm">
+            Already have an account?{" "}
+            <Link href="/login" className="text-primary hover:underline">
+              Sign in
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

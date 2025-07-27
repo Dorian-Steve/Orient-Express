@@ -1,14 +1,9 @@
-import React from "react";
-import { Hero } from "./_components/hero";
+import { OrientationContent } from "@/components/orientation-content";
 
-const Orientation = () => {
+export default function OrientationPage() {
   return (
-    <div>
-      <div className="flex">
-        <Hero />
-      </div>
+    <div className="min-h-screen bg-gray-50">
+      <OrientationContent />
     </div>
   );
-};
-
-export default Orientation;
+}

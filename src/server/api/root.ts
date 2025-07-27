@@ -1,5 +1,6 @@
-// import { postRouter } from "@/server/api/routers/post";
-import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
+// src/server/api/root.ts
+import { createTRPCRouter } from "@/server/api/trpc"; // Ensure this path is correct
+import { authRouter } from "@/server/api/routers/auth"; // Ensure this path is correct
 
 /**
  * This is the primary router for your server.
@@ -7,17 +8,10 @@ import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
  * All routers added in /api/routers should be manually added here.
  */
 export const appRouter = createTRPCRouter({
-  // post: postRouter,
+  // Mount your individual routers here.
+  // The 'auth' key here corresponds to the 'auth' in 'auth.student.signup'
+  auth: authRouter,
 });
 
-// export type definition of API
+// Export type definition of API for client-side usage
 export type AppRouter = typeof appRouter;
-
-/**
- * Create a server-side caller for the tRPC API.
- * @example
- * const trpc = createCaller(createContext);
- * const res = await trpc.post.all();
- *       ^? Post[]
- */
-export const createCaller = createCallerFactory(appRouter);

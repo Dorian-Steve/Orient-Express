@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
     provider        = "prisma-client-js"
     previewFeatures = ["views"]
@@ -11,95 +8,17 @@ datasource db {
     url      = env("DATABASE_URL")
 }
 
-// ===== USER MANAGEMENT =====
-model User {
-    id        String   @id @default(cuid())
-    clerkId   String   @unique
-    email     String   @unique
-    firstName String?
-    lastName  String?
-    imageUrl  String?
-    role      UserRole @default(STUDENT)
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    // Relations
-    studentProfile    StudentProfile?
-    advisorProfile    AdvisorProfile?
-    adminProfile      AdminProfile?
-    notifications     Notification[]
-    testResults       TestResult[]
-    recommendations   Recommendation[]
-    favoritePrograms  FavoriteProgram[]
-    appointments      Appointment[]
-    internshipMatches InternshipMatch[]
-    jobMatches        JobMatch[]
-
-    @@map("users")
-}
-
+// ===== ENUMS =====
 enum UserRole {
     STUDENT
     ADVISOR
     ADMIN
 }
 
-// ===== STUDENT PROFILES =====
-model StudentProfile {
-    id     String @id @default(cuid())
-    userId String @unique
-    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-    // Personal Information
-    studentId   String?   @unique
-    phoneNumber String?
-    dateOfBirth DateTime?
-    gender      Gender?
-    nationality String?
-    address     String?
-
-    // Academic Information
-    currentLevel          AcademicLevel?
-    currentProgram        String? // Could be linked to Program model if desired
-    currentSpecialization String? // Could be linked to Specialization model if desired
-    enrollmentYear        Int?
-    gpa                   Float?
-
-    // Academic Background
-    previousEducation  String?
-    baccalaureateType  String?
-    baccalaureateGrade String?
-    mathsGrade         Float?
-    physicsGrade       Float?
-    chemistryGrade     Float?
-    frenchGrade        Float?
-    englishGrade       Float?
-
-    // Professional Aspirations
-    careerGoals           String?
-    preferredSectors      String[] // JSON array of sectors
-    workEnvironmentPref   WorkEnvironment?
-    geographicConstraints String?
-    familyConstraints     String?
-    personalValues        String[] // JSON array of values
-
-    // Profile Status
-    profileCompleted  Boolean  @default(false)
-    lastProfileUpdate DateTime @default(now())
-
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    // Relations
-    academicForms   AcademicForm[]
-    aspirationForms AspirationForm[]
-
-    @@map("student_profiles")
-}
-
 enum Gender {
     MALE
     FEMALE
+    OTHER
 }
 
 enum AcademicLevel {
@@ -111,6 +30,51 @@ enum AcademicLevel {
     MASTER1
     MASTER2
     PHD
+}
+
+enum LearningStyle {
+    VISUAL
+    AUDITORY
+    READ_WRITE
+    KINESTHETIC
+    SOLITARY
+    SOCIAL
+    LOGICAL
+}
+
+enum TeachingMode {
+    LECTURE
+    SEMINAR
+    PRACTICAL
+    FIELD_WORK
+    ONLINE
+    BLENDED
+}
+
+enum SalaryRange {
+    BELOW_500K
+    RANGE_500K_1M
+    RANGE_1M_2M
+    RANGE_2M_
+    ENTRY_LEVEL
+    JUNIOR
+    MID_LEVEL
+    SENIOR
+    EXECUTIVE
+}
+
+enum ApplicationStatus {
+    PENDING
+    SUBMITTED
+    REVIEWED
+    APPROVED
+    REJECTED
+    COMPLETED
+    PASSED
+    FAILED
+    WITHDRAWN
+    FUNDED
+    CANCELLED
 }
 
 enum WorkEnvironment {
@@ -126,116 +90,302 @@ enum WorkEnvironment {
     SCHOOL
 }
 
-// ===== OTHER PROFILES =====
-model AdvisorProfile {
-    id     String @id @default(cuid())
-    userId String @unique
-    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+enum QuestionnaireType {
+    ACADEMIC_ASSESSMENT
+    CAREER_ORIENTATION
+    PERSONALITY_PROFILE
+    SKILL_ASSESSMENT
+}
 
-    // Changed 'department' from String to a relation to the new Department model
-    departmentId String?
-    department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+enum RecommendationFeedback {
+    VERY_HELPFUL
+    HELPFUL
+    NEUTRAL
+    NOT_HELPFUL
+    MISLEADING
+}
 
-    specialties String[] // JSON array - keep as string array for flexibility or link to Specialization
-    yearsExp    Int?
-    bio         String?
+enum CompanySize {
+    STARTUP
+    SMALL
+    MEDIUM
+    LARGE
+    ENTERPRISE
+}
 
+enum EmploymentType {
+    FULL_TIME
+    PART_TIME
+    CONTRACT
+    TEMPORARY
+    INTERNSHIP
+    FREELANCE
+}
+
+enum TestType {
+    PERSONALITY
+    APTITUDE
+    SKILL
+    ACADEMIC
+}
+
+enum TestCategory {
+    CORE
+    SUPPLEMENTARY
+}
+
+enum Difficulty {
+    EASY
+    MEDIUM
+    HARD
+}
+
+// =========================================================
+// NextAuth.js Models (for Google/iCloud/OAuth logins)
+// =========================================================
+
+model Account {
+  id                Int      @id @default(autoincrement())
+  userId            Int
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?  @db.Text
+  access_token      String?  @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?  @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           Int      @id @default(autoincrement())
+  sessionToken String   @unique
+  userId       Int
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  id         Int      @id @default(autoincrement()) // Added for consistency with other Int IDs
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ===== USER MANAGEMENT =====
+model User {
+    id                     Int                     @id @default(autoincrement()) // Changed to Int
+    email                  String                  @unique @db.VarChar(255)
+    emailVerified          DateTime?               // Added for email verification
+    name                   String?                 // Added for NextAuth.js (combines firstName/lastName if needed)
+    firstName              String?                 @db.VarChar(255)
+    lastName               String?                 @db.VarChar(255)
+    imageUrl               String?                 @db.VarChar(255)
+    schoolId               String                  @unique @db.VarChar(255)
+    role                   UserRole                @default(STUDENT)
+    createdAt              DateTime                @default(now())
+    updatedAt              DateTime                @updatedAt
+    passwordHash           String?                 @db.VarChar(255) // Keep for credentials provider
+    profileCompleted       Boolean                 @default(false)
+
+    // Relations
+    accounts               Account[]               // For OAuth logins (Google, iCloud)
+    sessions               Session[]               // For NextAuth.js sessions
+    validSchoolId          ValidSchoolId           @relation(fields: [schoolId], references: [schoolId])
+    studentProfile         StudentProfile?
+    advisorProfile         AdvisorProfile?
+    adminProfile           AdminProfile?
+    notifications          Notification[]
+    testResults            TestResult[]
+    recommendations        Recommendation[]
+    favoritePrograms       FavoriteProgram[]
+    appointments           Appointment[]
+    internshipMatches      InternshipMatch[]
+    jobMatches             JobMatch[]
+    savedInternships       SavedInternship[]
+    savedJobs              SavedJob[]
+    questionnaireResponses QuestionnaireResponse[]
+    alumniTestimonials     AlumniTestimonial[]
+
+    @@map("users")
+}
+
+model ValidSchoolId {
+    id        Int      @id @default(autoincrement())
+    schoolId  String   @unique @db.VarChar(255)
+    userRole  UserRole
+    isUsed    Boolean  @default(false)
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
     // Relations
+    users User[]
+
+    @@map("valid_school_ids")
+}
+
+// ===== STUDENT PROFILES =====
+model StudentProfile {
+    id                      Int                      @id @default(autoincrement()) // Changed to Int
+    userId                  Int                      @unique // Changed to Int
+    user                    User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    schoolId                String?                  @db.VarChar(255)
+    phoneNumber             String?                  @db.VarChar(20)
+    dateOfBirth             DateTime?
+    gender                  Gender?
+    nationality             String?                  @db.VarChar(100)
+    address                 String?                  @db.VarChar(255)
+    currentLevel            AcademicLevel?
+    currentProgram          String?                  @db.VarChar(255)
+    currentSpecialization   String?                  @db.VarChar(255)
+    enrollmentYear          Int?
+    previousEducation       String?                  @db.VarChar(255)
+    baccalaureateType       String?                  @db.VarChar(100)
+    baccalaureateGrade      String?                  @db.VarChar(50)
+    mathsGrade              Float?
+    physicsGrade            Float?
+    chemistryGrade          Float?
+    frenchGrade             Float?
+    englishGrade            Float?
+    // Academic and Professional Objectives
+    academicObjectives      String?                  @db.VarChar(1000)
+    professionalObjectives  String?                  @db.VarChar(1000)
+
+    // Work Preferences (only if working)
+    isWorking               Boolean                  @default(false)
+    workEnvironmentPref     WorkEnvironment?
+    fieldOfWork             String?                  @db.VarChar(255)
+
+    preferredSectors        String[]
+    geographicConstraints   String?                  @db.VarChar(255)
+
+    profileCompleted        Boolean                  @default(false)
+    lastProfileUpdate       DateTime                 @default(now())
+
+    createdAt               DateTime                 @default(now())
+    updatedAt               DateTime                 @updatedAt
+
+    // Relations
+    academicForms           AcademicForm[]
+    aspirationForms         AspirationForm[]
+    alumniTestimonials      AlumniTestimonial[]
+
+    @@map("student_profiles")
+}
+
+// ===== OTHER PROFILES =====
+model AdvisorProfile {
+    id           Int          @id @default(autoincrement()) // Changed to Int
+    userId       Int          @unique // Changed to Int
+    user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    departmentId Int?         // Changed to Int
+    department   Department?  @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+
+    specialties  String[]
+    fieldsOfWork String[]
+    yearsExp     Int?
+    bio          String?      @db.VarChar(1000)
+    createdAt    DateTime     @default(now())
+    updatedAt    DateTime     @updatedAt
+
     appointments Appointment[]
 
     @@map("advisor_profiles")
 }
 
 model AdminProfile {
-    id     String @id @default(cuid())
-    userId String @unique
-    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+    id          Int      @id @default(autoincrement()) // Changed to Int
+    userId      Int      @unique // Changed to Int
+    user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    permissions String[] // JSON array of admin permissions
-    department  String? // Keep as string or link to Department if needed
+    permissions String[]
+    department  String?  @db.VarChar(255)
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
 
     @@map("admin_profiles")
 }
 
-// ===== UNIVERSITY STRUCTURE (NEW MODELS) =====
-// Represents broad fields of study like MTIN, MTT, MTI
+// ===== UNIVERSITY STRUCTURE =====
 model Mention {
-    id          String  @id @default(cuid())
-    name        String  @unique // e.g., "Technologies de L'Informatique et du Numerique"
-    shortName   String  @unique // e.g., "MTIN"
-    description String?
+    id          Int          @id @default(autoincrement()) // Changed to Int
+    name        String       @unique @db.VarChar(255)
+    shortName   String       @unique @db.VarChar(50)
+    description String?      @db.VarChar(1000)
+    departments Department[]
+    programs    Program[]
 
-    departments Department[] // Departments belonging to this Mention
-    programs    Program[] // Programs directly under this Mention (if applicable)
-
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    createdAt   DateTime     @default(now())
+    updatedAt   DateTime     @updatedAt
 
     @@map("mentions")
 }
 
-// Represents specific departments within a Mention
 model Department {
-    id          String  @id @default(cuid())
-    name        String  @unique // e.g., "Genie Logiciel"
-    description String?
-
-    mentionId String // Link to the broad Mention
-    mention   Mention @relation(fields: [mentionId], references: [id], onDelete: Cascade)
-
-    programs Program[] // Programs offered by this Department
-    advisors AdvisorProfile[] // Advisors associated with this Department
-
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    id          Int          @id @default(autoincrement()) // Changed to Int
+    createdAt   DateTime     @default(now())
+    updatedAt   DateTime     @updatedAt
+    name        String       @unique @db.VarChar(255)
+    description String?      @db.VarChar(1000)
+    mentionId   Int          // Changed to Int
+    mention     Mention      @relation(fields: [mentionId], references: [id], onDelete: Cascade)
+    programs    Program[]
+    advisors    AdvisorProfile[]
+    specialties Specialty[]
 
     @@map("departments")
 }
 
-// ===== ACADEMIC PROGRAMS =====
 model Program {
-    id          String        @id @default(cuid())
-    code        String        @unique
-    name        String
-    shortName   String?
-    description String?
-    level       AcademicLevel
-    duration    Int // in semesters
+    id                 Int                   @id @default(autoincrement()) // Changed to Int
+    code               String                @unique @db.VarChar(50)
+    name               String                @db.VarChar(255)
+    shortName          String?               @db.VarChar(50)
+    description        String?               @db.VarChar(1000)
+    level              AcademicLevel
+    duration           Int
 
-    // New relations to Department and Mention
-    departmentId String?
-    department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-
-    mentionId String? // Optional: If a program can directly belong to a Mention without a specific department
-    mention   Mention? @relation(fields: [mentionId], references: [id], onDelete: SetNull)
+    // Relations to Department and Mention
+    departmentId       Int?                  // Changed to Int
+    department         Department?           @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+    mentionId          Int?                  // Changed to Int
+    mention            Mention?              @relation(fields: [mentionId], references: [id], onDelete: SetNull)
 
     // Requirements
-    prerequisites  String[] // JSON array
-    minGpaRequired Float?
-    maxCapacity    Int?
+    prerequisites      String[]
+    minGpaRequired     Float?
+    maxCapacity        Int?
 
     // Program Details
-    objectives      String?
-    skillsDeveloped String[] // JSON array
-    coursework      String?
-
+    objectives         String?               @db.VarChar(1000)
+    skillsDeveloped    String[]
+    coursework         String?               @db.VarChar(1000)
     // Career Information
-    careerProspects String[] // JSON array
-    averageSalary   Float?
-    employmentRate  Float?
+    careerProspects    String[]
+    averageSalary      Float?
+    employmentRate     Float?
 
     // Status
-    isActive        Boolean @default(true)
-    applicationOpen Boolean @default(true)
+    isActive           Boolean               @default(true)
+    applicationOpen    Boolean               @default(true)
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    createdAt          DateTime              @default(now())
+    updatedAt          DateTime              @updatedAt
 
     // Relations
     specializations    Specialization[]
@@ -249,193 +399,195 @@ model Program {
 }
 
 model Specialization {
-    id        String  @id @default(cuid())
-    programId String
-    program   Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+    id           Int      @id @default(autoincrement()) // Changed to Int
+    name         String   @db.VarChar(255)
+    description  String?  @db.VarChar(1000)
+    requirements String[]
 
-    name         String
-    description  String?
-    requirements String[] // JSON array
+    createdAt    DateTime @default(now())
+    updatedAt    DateTime @updatedAt
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    programId    Int      // Changed to Int
+    program      Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
 
     @@map("specializations")
 }
 
-// ===== ASSESSMENT FORMS =====
+model Specialty {
+    id           Int      @id @default(autoincrement()) // Changed to Int
+    name         String   @unique @db.VarChar(255)
+    departmentId Int      // Changed to Int
+    department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+    description  String?  @db.VarChar(1000)
+
+    objectives            String[]
+    skillsDeveloped       String[]
+    careerProspects       String[]
+    admissionRequirementsBacs String[]
+
+    createdAt    DateTime @default(now())
+    updatedAt    DateTime @updatedAt
+
+    @@map("specialties")
+}
+
+
+// ===== ACADEMIC FORMS AND TESTS =====
 model AcademicForm {
-    id        String         @id @default(cuid())
-    studentId String
-    student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+    id                    Int                     @id @default(autoincrement()) // Changed to Int
+    studentId             Int                     // Changed to Int
+    student               StudentProfile          @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
     // Academic History
     currentLevel          AcademicLevel
-    previousGrades        Json // Detailed grades by subject
-    academicStrengths     String[] // JSON array
-    academicWeaknesses    String[] // JSON array
-    favoriteSubjects      String[] // JSON array
-    leastFavoriteSubjects String[] // JSON array
+    previousGrades        Json
+    academicStrengths     String[]
+    academicWeaknesses    String[]
+    favoriteSubjects      String[]
+    leastFavoriteSubjects String[]
 
     // Learning Preferences
     learningStyle         LearningStyle?
     preferredTeachingMode TeachingMode?
-    studyHabits           String?
-
+    studyHabits           String?                 @db.VarChar(1000)
     // Academic Goals
-    shortTermGoals String?
-    longTermGoals  String?
-
+    shortTermGoals        String?                 @db.VarChar(1000)
+    longTermGoals         String?                 @db.VarChar(1000)
     // Completion Status
-    isCompleted Boolean   @default(false)
-    completedAt DateTime?
+    isCompleted           Boolean                 @default(false)
+    completedAt           DateTime?
+    createdAt             DateTime                @default(now())
+    updatedAt             DateTime                @updatedAt
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    // Relations
+    questionnaireResponse QuestionnaireResponse[]
 
     @@map("academic_forms")
 }
 
-enum LearningStyle {
-    VISUAL
-    AUDITORY
-    KINESTHETIC
-    READING_WRITING
-    MIXED
+model Questionnaire {
+    id        Int               @id @default(autoincrement()) // Changed to Int
+    title     String            @db.VarChar(255)
+    description String?         @db.VarChar(1000)
+    type      QuestionnaireType
+    questions Json
+    isActive  Boolean           @default(true)
+    createdAt DateTime          @default(now())
+    updatedAt DateTime          @updatedAt
+
+    responses QuestionnaireResponse[]
+
+    @@map("questionnaires")
 }
 
-enum TeachingMode {
-    TRADITIONAL_CLASSROOM
-    ONLINE_LEARNING
-    HYBRID
-    PRACTICAL_WORKSHOPS
-    PROJECT_BASED
+model QuestionnaireResponse {
+    id              Int           @id @default(autoincrement()) // Changed to Int
+    userId          Int           // Changed to Int
+    user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+    questionnaireId Int           // Changed to Int
+    questionnaire   Questionnaire @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
+    academicFormId  Int?          // Changed to Int
+    academicForm    AcademicForm? @relation(fields: [academicFormId], references: [id], onDelete: SetNull)
+
+    responses       Json
+    score           Float?
+    createdAt       DateTime      @default(now())
+    updatedAt       DateTime      @updatedAt
+
+    @@map("questionnaire_responses")
 }
 
 model AspirationForm {
-    id        String         @id @default(cuid())
-    studentId String
-    student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+    id                    Int                      @id @default(autoincrement()) // Changed to Int
+    studentId             Int                      // Changed to Int
+    student               StudentProfile           @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
     // Career Aspirations
-    dreamJob            String?
-    preferredIndustries String[] // JSON array
-    workEnvironmentPref WorkEnvironment?
-    salaryExpectations  SalaryRange?
-    workLifeBalance     Int? // Scale 1-10
+    dreamJob              String?                  @db.VarChar(255)
+    preferredIndustries   String[]
+    workEnvironmentPref   WorkEnvironment?
+    salaryExpectations    SalaryRange?
+    workLifeBalance       Int?
 
     // Professional Values
-    importantValues      String[] // JSON array
-    leadershipInterest   Boolean  @default(false)
-    entrepreneurialGoals Boolean  @default(false)
-    internationalCareer  Boolean  @default(false)
+    importantValues       String[]
+    leadershipInterest    Boolean                  @default(false)
+    entrepreneurialGoals  Boolean                  @default(false)
+    internationalCareer   Boolean                  @default(false)
 
     // Constraints and Preferences
-    geographicFlexibility Boolean @default(true)
-    familyConstraints     String?
-    physicalLimitations   String?
+    geographicFlexibility Boolean                  @default(true)
+    familyConstraints     String?                  @db.VarChar(255)
+    physicalLimitations   String?                  @db.VarChar(255)
 
     // Motivations
-    primaryMotivations String[] // JSON array
-    roleModels         String?
-    inspirationalStory String?
+    primaryMotivations    String[]
+    roleModels            String?                  @db.VarChar(255)
+    inspirationalStory    String?                  @db.VarChar(1000)
 
     // Completion Status
-    isCompleted Boolean   @default(false)
-    completedAt DateTime?
-
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    isCompleted           Boolean                  @default(false)
+    completedAt           DateTime?
+    createdAt             DateTime                 @default(now())
+    updatedAt             DateTime                 @updatedAt
 
     @@map("aspiration_forms")
 }
 
-enum SalaryRange {
-    BELOW_500K
-    RANGE_500K_1M
-    RANGE_1M_2M
-    RANGE_2M_5M
-    ABOVE_5M
-    NOT_IMPORTANT
-}
 
-// ===== ASSESSMENT TESTS =====
 model Test {
-    id          String       @id @default(cuid())
-    name        String
-    description String?
-    type        TestType
-    category    TestCategory
+    id            Int          @id @default(autoincrement()) // Changed to Int
+    name          String       @db.VarChar(255)
+    description   String?      @db.VarChar(1000)
+    type          TestType
+    category      TestCategory
 
     // Test Configuration
-    questions    Json // Array of questions with options
-    timeLimit    Int? // in minutes
-    passingScore Float?
-    maxAttempts  Int    @default(3)
+    questions     Json
+    timeLimit     Int?
+    passingScore  Float?
+    maxAttempts   Int          @default(3)
 
     // Status
-    isActive   Boolean    @default(true)
-    difficulty Difficulty @default(MEDIUM)
+    isActive      Boolean      @default(true)
+    difficulty    Difficulty   @default(MEDIUM)
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    createdAt     DateTime     @default(now())
+    updatedAt     DateTime     @updatedAt
 
     // Relations
-    testResults TestResult[]
+    testResults   TestResult[]
 
     @@map("tests")
 }
 
-enum TestType {
-    PERSONALITY
-    APTITUDE
-    LOGICAL_REASONING
-    CREATIVE_THINKING
-    TECHNICAL_SKILLS
-    LANGUAGE_PROFICIENCY
-    CAREER_INTEREST
-    PSYCHOLOGICAL
-}
-
-enum TestCategory {
-    CORE_ASSESSMENT
-    SUPPLEMENTARY
-    DIAGNOSTIC
-    VALIDATION
-}
-
-enum Difficulty {
-    EASY
-    MEDIUM
-    HARD
-    EXPERT
-}
-
 model TestResult {
-    id     String @id @default(cuid())
-    userId String
-    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-    testId String
-    test   Test   @relation(fields: [testId], references: [id], onDelete: Cascade)
+    id            Int          @id @default(autoincrement()) // Changed to Int
+    userId        Int          // Changed to Int
+    user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+    testId        Int          // Changed to Int
+    test          Test         @relation(fields: [testId], references: [id], onDelete: Cascade)
 
     // Results
-    score      Float
-    maxScore   Float
-    percentage Float
-    responses  Json // User's answers
-    analysis   Json // Detailed analysis of results
+    score         Float
+    maxScore      Float
+    percentage    Float
+    responses     Json
+    analysis      Json
 
     // Timing
-    timeSpent   Int // in seconds
-    startedAt   DateTime
-    completedAt DateTime?
-
+    timeSpent     Int
+    startedAt     DateTime
+    completedAt   DateTime?
     // Status
-    isCompleted   Boolean @default(false)
-    attemptNumber Int     @default(1)
+    isCompleted   Boolean      @default(false)
+    attemptNumber Int          @default(1)
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    // Relations
+    recommendations Recommendation[]
+
+    createdAt     DateTime @default(now())
+    updatedAt     DateTime @updatedAt
 
     @@unique([userId, testId, attemptNumber])
     @@map("test_results")
@@ -443,255 +595,198 @@ model TestResult {
 
 // ===== RECOMMENDATION SYSTEM =====
 model Recommendation {
-    id        String  @id @default(cuid())
-    userId    String
-    user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-    programId String
-    program   Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+    id               Int                    @id @default(autoincrement()) // Changed to Int
+    userId           Int                    // Changed to Int
+    user             User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+    programId        Int?                   // Changed to Int
+    program          Program?               @relation(fields: [programId], references: [id], onDelete: SetNull)
+
+    testResultId     Int?                   // Changed to Int
+    testResult       TestResult?            @relation(fields: [testResultId], references: [id], onDelete: SetNull)
 
     // Recommendation Details
-    score           Float // Compatibility score (0-100)
-    confidence      Float // Algorithm confidence (0-1)
-    reasoning       String[] // JSON array of reasons
-    strengths       String[] // Why this program fits
-    challenges      String[] // Potential challenges
-    recommendations String[] // Additional advice
+    score            Float
+    confidence       Float
+    reasoning        String[]
+    strengths        String[]
+    challenges       String[]
+    recommendations  String[]
 
     // Algorithm Information
-    algorithmVersion String @default("1.0")
-    criteriaWeights  Json // Weights used in calculation
+    algorithmVersion String                 @default("1.0") @db.VarChar(50)
+    criteriaWeights  Json
 
     // User Interaction
-    userFeedback RecommendationFeedback?
-    isBookmarked Boolean                 @default(false)
-    viewedAt     DateTime?
+    userFeedback     RecommendationFeedback?
+    isBookmarked     Boolean                @default(false)
+    viewedAt         DateTime?
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    createdAt        DateTime               @default(now())
+    updatedAt        DateTime               @updatedAt
 
-    @@unique([userId, programId]) // Prevent duplicate recommendations
+    @@unique([userId, programId])
     @@map("recommendations")
 }
 
-enum RecommendationFeedback {
-    VERY_HELPFUL
-    HELPFUL
-    NEUTRAL
-    NOT_HELPFUL
-    MISLEADING
-}
-
-// ===== FAVORITES AND BOOKMARKS =====
-model FavoriteProgram {
-    id        String  @id @default(cuid())
-    userId    String
-    user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-    programId String
-    program   Program @relation(fields: [programId], references: [id], onDelete: Cascade)
-
-    notes    String?
-    priority Int     @default(0) // Higher number = higher priority
-
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    @@unique([userId, programId])
-    @@map("favorite_programs")
-}
-
-// ===== INTERNSHIPS AND CAREER OPPORTUNITIES =====
+// ===== INTERNSHIPS =====
 model Internship {
-    id        String   @id @default(cuid())
-    programId String?
-    program   Program? @relation(fields: [programId], references: [id], onDelete: SetNull)
-
-    // Company Information
-    companyName    String
-    companyLogo    String?
-    companyWebsite String?
-    companySize    CompanySize?
-    industry       String
-
-    // Position Details
-    title            String
-    description      String
-    requirements     String[] // JSON array
-    responsibilities String[] // JSON array
-    skills           String[] // JSON array
-
-    // Practical Information
-    location            String
-    duration            Int // in months
-    stipend             Float?
-    isRemote            Boolean   @default(false)
-    startDate           DateTime?
+    id            Int           @id @default(autoincrement()) // Changed to Int
+    companyName   String        @db.VarChar(255)
+    title         String        @db.VarChar(255)
+    description   String?       @db.Text
+    location      String?       @db.VarChar(255)
+    employmentType EmploymentType
+    salaryRange   SalaryRange?
+    companySize   CompanySize?
+    startDate     DateTime?
+    endDate       DateTime?
     applicationDeadline DateTime?
+    responsibilities String[]
+    requirements  String[]
+    benefits      String[]
+    contactEmail  String?       @db.VarChar(255)
+    contactPhone  String?       @db.VarChar(20)
+    website       String?       @db.VarChar(255)
+    isActive      Boolean       @default(true)
 
-    // Contact Information
-    contactEmail  String?
-    contactPhone  String?
-    contactPerson String?
+    programId     Int?          // Changed to Int
+    program       Program?      @relation(fields: [programId], references: [id], onDelete: SetNull)
 
-    // Status
-    isActive       Boolean @default(true)
-    spotsAvailable Int?
+    createdAt     DateTime      @default(now())
+    updatedAt     DateTime      @updatedAt
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    // Relations
     internshipMatches InternshipMatch[]
+    savedInternships  SavedInternship[]
 
     @@map("internships")
 }
 
-enum CompanySize {
-    STARTUP // 1-10 employees
-    SMALL // 11-50 employees
-    MEDIUM // 51-200 employees
-    LARGE // 201-1000 employees
-    ENTERPRISE // 1000+ employees
-}
-
 model InternshipMatch {
-    id           String     @id @default(cuid())
-    userId       String
-    user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-    internshipId String
-    internship   Internship @relation(fields: [internshipId], references: [id], onDelete: Cascade)
+    id             Int       @id @default(autoincrement()) // Changed to Int
+    userId         Int       // Changed to Int
+    user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    internshipId   Int       // Changed to Int
+    internship     Internship @relation(fields: [internshipId], references: [id], onDelete: Cascade)
 
-    // Match Information
-    matchScore Float // 0-100
-    status     ApplicationStatus @default(INTERESTED)
-    appliedAt  DateTime?
-
-    // User Notes
-    notes String?
-
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    matchScore     Float
+    notes          String?   @db.VarChar(1000)
+    createdAt      DateTime  @default(now())
+    updatedAt      DateTime  @updatedAt
 
     @@unique([userId, internshipId])
     @@map("internship_matches")
 }
 
+model SavedInternship {
+    id             Int       @id @default(autoincrement()) // Changed to Int
+    userId         Int       // Changed to Int
+    user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    internshipId   Int       // Changed to Int
+    internship     Internship @relation(fields: [internshipId], references: [id], onDelete: Cascade)
+
+    notes          String?   @db.VarChar(1000)
+    createdAt      DateTime  @default(now())
+    updatedAt      DateTime  @updatedAt
+
+    @@unique([userId, internshipId])
+    @@map("saved_internships")
+}
+
+// ===== JOBS =====
 model Job {
-    id        String   @id @default(cuid())
-    programId String?
-    program   Program? @relation(fields: [programId], references: [id], onDelete: SetNull)
-
-    // Company Information
-    companyName    String
-    companyLogo    String?
-    companyWebsite String?
-    companySize    CompanySize?
-    industry       String
-
-    // Position Details
-    title            String
-    description      String
-    requirements     String[] // JSON array
-    responsibilities String[] // JSON array
-    skills           String[] // JSON array
-
-    // Practical Information
-    location            String
-    employmentType      EmploymentType @default(FULL_TIME)
-    salary              Float?
-    salaryRange         SalaryRange?
-    isRemote            Boolean        @default(false)
-    startDate           DateTime?
+    id            Int           @id @default(autoincrement()) // Changed to Int
+    companyName   String        @db.VarChar(255)
+    title         String        @db.VarChar(255)
+    description   String?       @db.Text
+    location      String?       @db.VarChar(255)
+    employmentType EmploymentType
+    salaryRange   SalaryRange?
+    companySize   CompanySize?
+    postedDate    DateTime?
     applicationDeadline DateTime?
+    responsibilities String[]
+    requirements  String[]
+    benefits      String[]
+    contactEmail  String?       @db.VarChar(255)
+    contactPhone  String?       @db.VarChar(20)
+    website       String?       @db.VarChar(255)
+    isActive      Boolean       @default(true)
 
-    // Contact Information
-    contactEmail  String?
-    contactPhone  String?
-    contactPerson String?
+    programId     Int?          // Changed to Int
+    program       Program?      @relation(fields: [programId], references: [id], onDelete: SetNull)
 
-    // Status
-    isActive       Boolean @default(true)
-    spotsAvailable Int?
+    createdAt     DateTime      @default(now())
+    updatedAt     DateTime      @updatedAt
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    // Relations
-    jobMatches JobMatch[]
+    jobMatches    JobMatch[]
+    savedJobs     SavedJob[]
 
     @@map("jobs")
 }
 
-enum EmploymentType {
-    FULL_TIME
-    PART_TIME
-    CONTRACT
-    TEMPORARY
-    INTERNSHIP
-    FREELANCE
-}
-
 model JobMatch {
-    id     String @id @default(cuid())
-    userId String
-    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-    jobId  String
-    job    Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+    id             Int       @id @default(autoincrement()) // Changed to Int
+    userId         Int       // Changed to Int
+    user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    jobId          Int       // Changed to Int
+    job            Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
-    // Match Information
-    matchScore Float // 0-100
-    status     ApplicationStatus @default(INTERESTED)
-    appliedAt  DateTime?
-
-    // User Notes
-    notes String?
-
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    matchScore     Float
+    notes          String?   @db.VarChar(1000)
+    createdAt      DateTime  @default(now())
+    updatedAt      DateTime  @updatedAt
 
     @@unique([userId, jobId])
     @@map("job_matches")
 }
 
-enum ApplicationStatus {
-    INTERESTED
-    APPLIED
-    INTERVIEW_SCHEDULED
-    UNDER_REVIEW
-    ACCEPTED
-    REJECTED
-    WITHDRAWN
-    OFFER_PENDING
+model SavedJob {
+    id             Int       @id @default(autoincrement()) // Changed to Int
+    userId         Int       // Changed to Int
+    user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    jobId          Int       // Changed to Int
+    job            Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+    notes          String?   @db.VarChar(1000)
+    createdAt      DateTime  @default(now())
+    updatedAt      DateTime  @updatedAt
+
+    @@unique([userId, jobId])
+    @@map("saved_jobs")
 }
 
-// ===== APPOINTMENTS AND COUNSELING =====
+
+// ===== USER INTERACTION & ALUMNI =====
+model FavoriteProgram {
+    id         Int      @id @default(autoincrement()) // Changed to Int
+    userId     Int      // Changed to Int
+    user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    programId  Int      // Changed to Int
+    program    Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+    notes      String?  @db.VarChar(1000)
+    priority   Int      @default(0)
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
+
+    @@unique([userId, programId])
+    @@map("favorite_programs")
+}
+
 model Appointment {
-    id        String          @id @default(cuid())
-    studentId String
-    student   User            @relation(fields: [studentId], references: [id], onDelete: Cascade)
-    advisorId String?
+    id        Int           @id @default(autoincrement()) // Changed to Int
+    studentId Int           // Changed to Int
+    student   User          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+    advisorId Int?          // Changed to Int
     advisor   AdvisorProfile? @relation(fields: [advisorId], references: [id], onDelete: SetNull)
 
     // Appointment Details
-    title       String
-    description String?
-    type        AppointmentType
-    mode        MeetingMode     @default(IN_PERSON)
-
-    // Scheduling
-    scheduledAt DateTime
-    duration    Int      @default(60) // in minutes
-    location    String?
-    meetingLink String?
-
-    // Status
-    status          AppointmentStatus @default(SCHEDULED)
-    cancelReason    String?
-    rescheduleCount Int               @default(0)
-
-    // Notes
-    advisorNotes  String?
-    studentNotes  String?
-    followUpItems String[] // JSON array
+    title     String        @db.VarChar(255)
+    description String?     @db.Text
+    startTime DateTime
+    endTime   DateTime
+    isConfirmed Boolean     @default(false)
+    meetingLink String?     @db.VarChar(255)
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
@@ -699,152 +794,84 @@ model Appointment {
     @@map("appointments")
 }
 
-enum AppointmentType {
-    ACADEMIC_GUIDANCE
-    CAREER_COUNSELING
-    PROGRAM_SELECTION
-    INTERNSHIP_GUIDANCE
-    PERSONAL_DEVELOPMENT
-    FOLLOW_UP
-    MENTAL_HEALTH
-}
-
-enum MeetingMode {
-    IN_PERSON
-    VIDEO_CALL
-    PHONE_CALL
-    CHAT
-}
-
-enum AppointmentStatus {
-    SCHEDULED
-    CONFIRMED
-    IN_PROGRESS
-    COMPLETED
-    CANCELLED
-    NO_SHOW
-    RESCHEDULED
-}
-
-// ===== NOTIFICATIONS =====
 model Notification {
-    id     String @id @default(cuid())
-    userId String
-    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+    id        Int      @id @default(autoincrement()) // Changed to Int
+    userId    Int      // Changed to Int
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    // Notification Content
-    title    String
-    message  String
-    type     NotificationType
-    priority NotificationPriority @default(MEDIUM)
-
-    // Notification Data
-    data      Json? // Additional data for the notification
-    actionUrl String? // URL to navigate when clicked
-
-    // Status
-    isRead Boolean   @default(false)
-    readAt DateTime?
-
-    // Delivery
-    deliveredAt DateTime?
-    expiresAt   DateTime?
+    title     String   @db.VarChar(255)
+    message   String   @db.Text
+    isRead    Boolean  @default(false)
+    type      String?  @db.VarChar(50)
+    link      String?  @db.VarChar(255)
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    @@index([userId, isRead]) // For efficient querying of unread notifications
     @@map("notifications")
 }
 
-enum NotificationType {
-    RECOMMENDATION_READY
-    APPOINTMENT_REMINDER
-    APPLICATION_DEADLINE
-    PROGRAM_UPDATE
-    TEST_AVAILABLE
-    INTERNSHIP_MATCH
-    JOB_MATCH
-    SYSTEM_ANNOUNCEMENT
-    PROFILE_INCOMPLETE
-    WELCOME
-}
-
-enum NotificationPriority {
-    LOW
-    MEDIUM
-    HIGH
-    URGENT
-}
-
-// ===== ALUMNI TESTIMONIALS =====
 model AlumniTestimonial {
-    id        String  @id @default(cuid())
-    programId String
-    program   Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+    id               Int             @id @default(autoincrement()) // Changed to Int
+    userId           Int             // Changed to Int
+    user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+    studentProfileId Int?            // Changed to Int
+    studentProfile   StudentProfile? @relation(fields: [studentProfileId], references: [id])
 
-    // Alumni Information
-    alumniName     String
-    graduationYear Int
-    currentJob     String?
-    currentCompany String?
+    programId        Int             // Changed to Int
+    program          Program         @relation(fields: [programId], references: [id], onDelete: Cascade)
 
-    // Testimonial Content
-    testimonial String
-    advice      String?
-    rating      Int?    @db.SmallInt // 1-5 stars, using SmallInt for better performance
+    gradYear         Int?
+    currentJob       String?         @db.VarChar(255)
+    currentCompany   String?         @db.VarChar(255)
 
-    // Media
-    profileImage String?
-    videoUrl     String?
+    testimonial      String          @db.Text
+    advice           String?         @db.Text
+    rating           Int?            @db.SmallInt
 
-    // Status
-    isApproved Boolean @default(false)
-    isFeatured Boolean @default(false)
+    profileImage     String?         @db.VarChar(255)
+    videoUrl         String?         @db.VarChar(255)
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    isApproved       Boolean         @default(false)
+    isFeatured       Boolean         @default(false)
 
-    @@index([programId, isApproved]) // For efficient querying of approved testimonials
+    createdAt        DateTime        @default(now())
+    updatedAt        DateTime        @updatedAt
+
+    @@index([programId, isApproved])
     @@map("alumni_testimonials")
 }
 
 // ===== SYSTEM CONFIGURATION =====
 model SystemConfig {
-    id    String @id @default(cuid())
-    key   String @unique
-    value Json
+    id          Int      @id @default(autoincrement()) // Changed to Int
+    key         String   @unique @db.VarChar(255)
+    value       Json
+    description String?  @db.VarChar(1000)
+    category    String?  @db.VarChar(255)
+    isActive    Boolean  @default(true)
 
-    description String?
-    category    String?
-    isActive    Boolean @default(true)
-
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
 
     @@map("system_config")
 }
 
 // ===== ANALYTICS =====
 model UserActivity {
-    id        String  @id @default(cuid())
-    userId    String?
-    sessionId String?
-
-    // Activity Details
-    action     String
-    resource   String?
-    resourceId String?
+    id         Int      @id @default(autoincrement()) // Changed to Int
+    userId     Int?     // Changed to Int
+    sessionId  String?  @db.VarChar(255)
+    action     String   @db.VarChar(255)
+    resource   String?  @db.VarChar(255)
+    resourceId String?  @db.VarChar(255)
     metadata   Json?
+    userAgent  String?  @db.VarChar(500)
+    ipAddress  String?  @db.VarChar(45)
+    referrer   String?  @db.VarChar(255)
+    createdAt  DateTime @default(now())
 
-    // Context
-    userAgent String?
-    ipAddress String?
-    referrer  String?
-
-    createdAt DateTime @default(now())
-
-    @@index([userId, createdAt]) // For efficient user activity queries
-    @@index([action, createdAt]) // For analytics by action type
+    @@index([userId, createdAt])
+    @@index([action, createdAt])
     @@map("user_activities")
 }
